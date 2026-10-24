@@ -1,0 +1,131 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
+  <meta name="theme-color" content="#0d2337" />
+  <meta name="apple-mobile-web-app-capable" content="yes" />
+  <meta name="apple-mobile-web-app-title" content="SkyGate Desk" />
+  <title>SkyGate Desk | Deposit Operations</title>
+  <link rel="apple-touch-icon" href="assets/skygate.png" />
+  <link rel="icon" href="assets/skygate.png" />
+  <link rel="stylesheet" href="styles.css" />
+  <script defer src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.min.js"></script>
+  <script defer src="config.js"></script>
+  <script defer src="app.js"></script>
+</head>
+<body>
+  <div id="app" class="app">
+    <header class="topbar">
+      <div class="brand">
+        <div class="brand-mark"><img src="assets/skygate.png" alt="SkyGate logo" /></div>
+        <div><div class="brand-name">SkyGate<span>Desk</span></div><div class="brand-sub">NEEX deposit operations</div></div>
+      </div>
+      <div class="topbar-right"><span id="modeTag" class="mode-tag">DEMO</span><button id="signOutButton" type="button" class="small-link hidden">Sign out</button></div>
+    </header>
+
+    <main class="main">
+      <section id="loginScreen" class="login-wrap hidden" aria-labelledby="loginHeading">
+        <div class="login-card">
+          <span class="eyebrow">STAFF ACCESS</span>
+          <h1 id="loginHeading">Welcome back</h1>
+          <p class="muted">Sign in with your authorized SkyGate staff account. Client records are protected by database permissions.</p>
+          <form id="loginForm">
+            <label for="loginEmail">Staff email</label><input required id="loginEmail" type="email" autocomplete="username" placeholder="staff@company.com" />
+            <label for="loginPassword">Password</label><input required id="loginPassword" type="password" autocomplete="current-password" placeholder="Your staff password" />
+            <button type="submit" class="primary wide" id="loginButton">Sign in securely</button>
+          </form>
+          <div class="note"><strong>Important:</strong> Only accounts explicitly authorized in Supabase can access client data. Never use a shared PIN such as 123 for customer credentials.</div>
+          <p id="loginError" role="alert" class="error"></p>
+        </div>
+      </section>
+
+      <section id="workArea" class="hidden">
+        <div id="demoBanner" class="demo-banner"><span>Preview mode</span> Fictional sample clients only. Nothing is saved online. <button type="button" id="demoHelp">Connect database</button></div>
+        <div class="page-heading"><div><span class="eyebrow">SKYGATE OPERATIONS</span><h1 id="pageTitle">New deposit record</h1><p id="pageSubtitle">Record an intake and generate a clean client acknowledgment.</p></div><span id="todayTag" class="date-tag"></span></div>
+
+        <section id="pageReceipt" class="page-panel">
+          <div class="two-col">
+            <div class="panel form-panel">
+              <div class="panel-heading"><span class="step-number">01</span><div><h2>Receipt details</h2><p>Complete the fields and preview before recording.</p></div></div>
+              <form id="receiptForm">
+                <label for="receiptFind">Find client or MT5</label><input id="receiptFind" type="search" placeholder="Search name or account number" autocomplete="off" />
+                <label for="receiptClient">Client</label>
+                <select id="receiptClient"><option value="">Manual / unregistered client</option></select>
+                <div class="form-grid"><div><label for="receiptName">Client name</label><input id="receiptName" type="text" maxlength="100" placeholder="Client full name" /></div><div><label for="receiptMT5">MT5 account number *</label><input id="receiptMT5" type="text" inputmode="numeric" maxlength="24" placeholder="e.g. 1303507" required /></div></div>
+                <label for="accountPick" id="accountPickLabel" class="hidden">Select an account linked to this client</label>
+                <select id="accountPick" class="hidden"></select>
+                <div class="form-grid"><div><label for="iqdAmount">Deposit amount (IQD) *</label><div class="unit-input"><input id="iqdAmount" type="number" min="1" step="1" inputmode="numeric" placeholder="2,000,000" required /><span>IQD</span></div></div><div><label for="exchangeRate">Exchange rate (IQD per 1 USD) *</label><div class="unit-input"><input id="exchangeRate" type="number" min="1" step="0.01" inputmode="decimal" value="1500" required /><span>IQD</span></div></div></div>
+                <div class="conversion"><div><span>USD equivalent</span><strong id="conversionValue">$0.00</strong></div><small>IQD amount ÷ exchange rate. The rate is entered by SkyGate, not a live market quote.</small></div>
+                <div class="actions"><button type="submit" class="primary wide">Generate receipt <span aria-hidden="true">→</span></button></div>
+              </form>
+            </div>
+            <div class="panel preview-panel">
+              <div class="panel-heading"><span class="step-number">02</span><div><h2>Receipt preview</h2><p>Optimized for a quick iPhone screenshot.</p></div></div>
+              <div id="receiptEmpty" class="receipt-empty"><span class="receipt-empty-icon">▤</span><h3>Ready to generate</h3><p>Enter an MT5 account, IQD amount and exchange rate to view the receipt here.</p></div>
+              <div id="receiptResult" class="hidden">
+                <article id="receiptCard" class="receipt-card" aria-label="SkyGate deposit acknowledgment">
+                  <div class="receipt-topline"></div>
+                  <div class="receipt-inner">
+                    <div class="receipt-brandrow"><div class="sky-logo"><img src="assets/skygate.png" alt="SkyGate Technology" /><div><strong>SKYGATE</strong><small>TECHNOLOGY</small></div></div><div class="neex-logo"><img src="assets/neex.png" alt="NEEX" /></div></div>
+                    <div class="receipt-title"><span>SKYGATE • CLIENT DEPOSIT RECORD</span><h2>Deposit acknowledgment</h2><p id="rcDate"></p></div>
+                    <div class="receipt-mainamount"><span>RECORDED DEPOSIT AMOUNT</span><strong id="rcIQD">0 IQD</strong><small>Equivalent <b id="rcUSD">$0.00 USD</b></small></div>
+                    <div class="receipt-rows"><div><span>Client</span><strong id="rcName">—</strong></div><div><span>MT5 account</span><strong id="rcMT5">—</strong></div><div><span>Exchange rate</span><strong id="rcRate">—</strong></div><div><span>Converted amount</span><strong id="rcConverted">—</strong></div><div><span>Record reference</span><strong id="rcRef">—</strong></div></div>
+                    <div class="receipt-footer"><div class="receipt-footmark"><span class="footmark-dot"></span> Recorded by SkyGate Technology</div><p>SkyGate deposit intake acknowledgment. NEEX account credit is not verified by this document.</p></div>
+                  </div>
+                </article>
+                <div class="receipt-buttons"><button id="screenshotButton" class="primary" type="button">Screenshot view</button><button id="downloadButton" class="outline" type="button">Save PDF / Print</button><button id="saveReceiptButton" class="outline wide" type="button">Save record to database</button></div>
+                <p id="receiptStatus" class="help-text" aria-live="polite"></p>
+              </div>
+            </div>
+          </div>
+        </section>
+
+        <section id="pageClients" class="page-panel hidden">
+          <div class="two-col clients-layout">
+            <div class="panel form-panel">
+              <div class="panel-heading"><span class="step-number">+</span><div><h2 id="clientEditorTitle">Add client</h2><p>Keep multiple MT5 accounts together under one client.</p></div></div>
+              <form id="clientForm">
+                <input id="editingClientId" type="hidden" />
+                <label for="clientName">Full name *</label><input id="clientName" required maxlength="100" placeholder="Full name" />
+                <label for="clientEmail">Email</label><input id="clientEmail" type="email" maxlength="200" autocomplete="off" placeholder="name@example.com" />
+                <label for="clientPhone">Phone number</label><input id="clientPhone" type="tel" maxlength="40" autocomplete="off" placeholder="+964 ..." />
+                <div class="field-heading"><label>MT5 accounts</label><button type="button" id="addMt5Field" class="text-button">+ Add account</button></div>
+                <div id="mt5Fields" class="mt5-field-list"></div>
+                <div class="actions"><button type="submit" class="primary wide" id="saveClientBtn">Save client</button><button type="button" class="outline wide hidden" id="cancelEdit">Cancel editing</button></div>
+              </form>
+              <p class="help-text">Trading passwords are intentionally excluded. Store them with an approved credential vault, not in a website or client database.</p>
+              <p id="clientMessage" role="status" class="help-text"></p>
+            </div>
+            <div class="panel list-panel"><div class="panel-heading"><span class="step-number">↗</span><div><h2>Client directory</h2><p id="clientCount">Search records and linked accounts.</p></div></div><label for="clientSearch">Search by name, phone, email or MT5</label><input id="clientSearch" type="search" placeholder="Find a client or MT5…" /><div id="clientList" class="client-list"></div></div>
+          </div>
+        </section>
+
+        <section id="pageEnquiry" class="page-panel hidden">
+          <div class="panel enquiry-panel"><div class="panel-heading"><span class="step-number">⌕</span><div><h2>Client enquiry</h2><p>Staff-only contact and MT5 account lookup.</p></div></div>
+            <label for="enquirySearch">Search client name, email, phone or MT5 account</label>
+            <input id="enquirySearch" type="search" placeholder="Start typing a client name or account number" />
+            <p class="help-text">Personal details are available only to authorized staff in live mode. Trading passwords are not collected.</p>
+            <div id="enquiryResults" class="enquiry-results"></div>
+          </div>
+        </section>
+
+        <section id="pageHistory" class="page-panel hidden">
+          <div class="panel"><div class="panel-heading"><span class="step-number">↻</span><div><h2>Deposit records</h2><p>Recently saved intake acknowledgments. Tap one to reopen its receipt.</p></div></div><div id="historyList" class="history-list"></div></div>
+        </section>
+
+        <section id="pageSettings" class="page-panel hidden">
+          <div class="panel settings-panel"><span class="eyebrow">OPERATIONS SETTINGS</span><h2>Data & security</h2><div class="setting-row"><span>Current mode</span><strong id="settingsMode">Demo</strong></div><div class="setting-row"><span>Default currency</span><strong>IQD</strong></div><div class="setting-row"><span>Database</span><strong id="dbStatus">Not connected</strong></div><div class="setting-row"><span>Trading passwords</span><strong>Not stored</strong></div><p class="help-text">To enable online records, create a Supabase project, run the included SQL file, authorize your staff account, and update <code>config.js</code>. The live website authenticates staff before showing customer data.</p><button id="exportClientButton" type="button" class="outline">Export client directory as CSV</button><p class="help-text">CSV includes customer contact information. Store exported files securely and delete copies you no longer need.</p></div>
+        </section>
+      </section>
+    </main>
+    <nav id="bottomNav" class="bottom-nav hidden" aria-label="Main navigation">
+      <button data-page="Receipt" class="nav-active" type="button"><span>▤</span>Receipt</button>
+      <button data-page="Clients" type="button"><span>♙</span>Clients</button>
+      <button data-page="Enquiry" type="button"><span>⌕</span>Enquiry</button>
+      <button data-page="History" type="button"><span>◷</span>History</button>
+      <button data-page="Settings" type="button"><span>⚙</span>Settings</button>
+    </nav>
+  </div>
+</body>
+</html>
