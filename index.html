@@ -105,40 +105,40 @@
     </section>
 
     <section id="tab-enquiry" class="tab-panel hidden">
-      <div class="page-heading"><div><div class="eyebrow">OPERATIONS DIRECTORY</div><h1>Live client enquiry</h1><p>Search full names, email addresses, IBs and MT5 account prefixes.</p></div></div>
-      <div class="panel"><label for="enquirySearch">Search database</label><input id="enquirySearch" type="search" placeholder="Try a name like Azad or account prefix 1315" autocomplete="off"><div class="field-note" id="enquiryHint">Results update as you type. IB-linked clients are grouped under their IB.</div><div id="enquiryResults" class="results" aria-live="polite"></div></div>
+      <div class="page-heading"><div><div class="eyebrow">OPERATIONS DIRECTORY</div><h1>Live client enquiry</h1><p>Search full names, emails, notes, IBs and MT5 account prefixes.</p></div></div>
+      <div class="panel"><label for="enquirySearch">Search database</label><input id="enquirySearch" type="search" placeholder="Try a name like Azad or account prefix 1315" autocomplete="off"><div class="field-note" id="enquiryHint">Results update as you type. Notes appear under matching client and IB records.</div><div id="enquiryResults" class="results" aria-live="polite"></div></div>
     </section>
 
     <section id="tab-clients" class="tab-panel hidden">
-      <div class="page-heading"><div><div class="eyebrow">CLIENT MANAGEMENT</div><h1>Client profiles</h1><p>One name, one client profile, multiple linked MT5 accounts.</p></div></div>
+      <div class="page-heading"><div><div class="eyebrow">CLIENT MANAGEMENT</div><h1>Client profiles</h1><p>One client profile can link multiple MT5 accounts. Notes are visible in enquiry.</p></div></div>
       <div class="columns">
-        <div class="panel"><div class="section-title"><span class="index-dot">+</span><div><h2 id="clientFormTitle">Register client</h2><p>Unique email, phone and MT5 numbers</p></div></div>
+        <div class="panel"><div class="section-title"><span class="index-dot">+</span><div><h2 id="clientFormTitle">Register client</h2><p>All fields optional · entered email, phone and MT5 must be unique</p></div></div>
           <form id="clientForm">
             <input type="hidden" id="editClientId">
-            <label for="clientFullName">Full name *</label><input id="clientFullName" required maxlength="120" placeholder="Full name">
+            <label for="clientFullName">Full name (optional)</label><input id="clientFullName" maxlength="120" placeholder="Full name">
             <label for="clientEmail">Client email</label><input id="clientEmail" type="email" maxlength="180" placeholder="client@example.com" autocomplete="off">
             <label for="clientPhone">Phone number</label><input id="clientPhone" type="tel" maxlength="35" placeholder="+964 ..." autocomplete="off">
             <label for="clientIbLookup">Registered under IB (searchable)</label><input id="clientIbLookup" list="ibSuggestions" placeholder="Search IB name / number / email" autocomplete="off"><datalist id="ibSuggestions"></datalist><p id="selectedIbNote" class="field-note">Select an existing IB, or leave empty if none.</p>
-            <label>MT5 account numbers *</label><div id="accountInputs" class="stack"></div><button type="button" id="addAccountBtn" class="text-btn add-line">+ Add another MT5 account</button>
-            <details class="secure-details"><summary>Optional client portal password (encrypted)</summary><p class="field-note">Save only with the client's authorization. Use a separate strong vault passphrase; this is never the client portal password.</p><label for="clientPortalPass">Portal password</label><input type="password" id="clientPortalPass" autocomplete="new-password" placeholder="Optional portal password"><label for="clientVaultPass">Your vault passphrase (12+ characters)</label><input id="clientVaultPass" type="password" autocomplete="off" placeholder="Used to encrypt the password"></details>
+            <label>MT5 account numbers (optional)</label><div id="accountInputs" class="stack"></div><button type="button" id="addAccountBtn" class="text-btn add-line">+ Add another MT5 account</button>
+            <label for="clientNotes">Client notes (optional)</label><textarea id="clientNotes" rows="4" maxlength="3000" placeholder="Internal notes for staff search and enquiry. Do not enter passwords."></textarea>
             <button class="btn primary wide" type="submit" id="clientSaveBtn">Register client</button><button id="cancelClientEdit" class="btn secondary wide hidden" type="button">Cancel edit</button><p id="clientMsg" class="form-msg" role="status"></p>
           </form>
         </div>
-        <div class="panel"><div class="section-title"><span class="index-dot">⌕</span><div><h2>Client records</h2><p>Tap a record to edit or inspect</p></div></div><label for="clientListSearch">Search clients</label><input id="clientListSearch" type="search" placeholder="Name, email, account"><div id="clientList" class="results"></div></div>
+        <div class="panel"><div class="section-title"><span class="index-dot">⌕</span><div><h2>Client records</h2><p>Tap a record to edit or inspect notes</p></div></div><label for="clientListSearch">Search clients</label><input id="clientListSearch" type="search" placeholder="Name, email, account"><div id="clientList" class="results"></div></div>
       </div>
     </section>
 
     <section id="tab-ibs" class="tab-panel hidden">
-      <div class="page-heading"><div><div class="eyebrow">PARTNER NETWORK</div><h1>Introducing Brokers</h1><p>Each IB contains its assigned clients and trading account.</p></div></div>
+      <div class="page-heading"><div><div class="eyebrow">PARTNER NETWORK</div><h1>Introducing Brokers</h1><p>Each IB can have multiple linked clients. Notes appear in search results.</p></div></div>
       <div class="columns">
-        <div class="panel"><div class="section-title"><span class="index-dot">+</span><div><h2 id="ibFormTitle">Add introducing broker</h2><p>Broker details and optional encrypted credential</p></div></div>
+        <div class="panel"><div class="section-title"><span class="index-dot">+</span><div><h2 id="ibFormTitle">Add introducing broker</h2><p>All fields optional · duplicate IB identifiers rejected</p></div></div>
           <form id="ibForm"><input type="hidden" id="editIbId">
-            <label for="ibCode">IB number / code *</label><input id="ibCode" required maxlength="40" placeholder="e.g. IB2026-01">
-            <label for="ibName">IB full name *</label><input id="ibName" required maxlength="120" placeholder="IB full name">
+            <label for="ibCode">IB number / code (optional)</label><input id="ibCode" maxlength="40" placeholder="e.g. IB2026-01">
+            <label for="ibName">IB full name (optional)</label><input id="ibName" maxlength="120" placeholder="IB full name">
             <label for="ibEmail">IB email</label><input id="ibEmail" type="email" maxlength="180" placeholder="ib@example.com">
             <label for="ibPhone">IB phone</label><input id="ibPhone" type="tel" maxlength="35" placeholder="Optional phone">
             <label for="ibTradingAccount">IB trading account number</label><input id="ibTradingAccount" inputmode="numeric" maxlength="24" placeholder="Trading / MT5 account">
-            <details class="secure-details"><summary>Optional IB portal password (encrypted)</summary><label for="ibPortalPass">Portal password</label><input id="ibPortalPass" type="password" autocomplete="new-password" placeholder="Optional portal password"><label for="ibVaultPass">Your vault passphrase (12+ characters)</label><input id="ibVaultPass" type="password" autocomplete="off" placeholder="Used to encrypt the password"></details>
+            <label for="ibNotes">IB notes (optional)</label><textarea id="ibNotes" rows="4" maxlength="3000" placeholder="Internal notes about this IB. Do not enter passwords."></textarea>
             <button class="btn primary wide" type="submit" id="ibSaveBtn">Save IB</button><button class="btn secondary wide hidden" type="button" id="cancelIbEdit">Cancel edit</button><p id="ibMsg" class="form-msg" role="status"></p>
           </form>
         </div>
@@ -148,17 +148,13 @@
 
     <section id="tab-history" class="tab-panel hidden"><div class="page-heading"><div><div class="eyebrow">TRANSACTION REGISTER</div><h1>Receipt history</h1><p>Recorded intake documents, ordered from newest to oldest.</p></div></div><div class="panel"><div id="historyList" class="results"></div></div></section>
 
-    <section id="tab-settings" class="tab-panel hidden"><div class="page-heading"><div><div class="eyebrow">ACCESS & SETTINGS</div><h1>Security settings</h1><p>Control your authenticated Supabase connection and portal credential access.</p></div></div>
+    <section id="tab-settings" class="tab-panel hidden"><div class="page-heading"><div><div class="eyebrow">DATABASE & SETTINGS</div><h1>Database settings</h1><p>View your authenticated Supabase connection and saved exchange rate.</p></div></div>
       <div class="columns">
         <div class="panel"><h2>Database status</h2><div class="setting-row"><span>Connection</span><strong id="configStatus">Demo</strong></div><div class="setting-row"><span>Staff role</span><strong id="roleStatus">—</strong></div><div class="setting-row"><span>USD / IQD exchange rate</span><strong id="settingsRate">—</strong></div><p class="field-note">The last saved exchange rate is read from Supabase when you open the site. The initial example value is not a live market rate.</p></div>
-        <div class="panel"><h2>Secure portal password access</h2><p class="subtle">Encrypted credentials can be revealed only after your staff account completes Supabase MFA verification, and after entering the separate vault passphrase.</p><div id="mfaStatus" class="field-note">Checking MFA configuration…</div>
-          <button id="startMfaBtn" type="button" class="btn secondary">Set up MFA authenticator</button><div id="mfaEnroll" class="hidden mfa-box"><img id="mfaQr" alt="QR code for authenticator enrollment"><p class="field-note">Use an authenticator app to scan this QR code; then enter its 6-digit code.</p><label for="mfaEnrollCode">Authenticator code</label><input id="mfaEnrollCode" inputmode="numeric" autocomplete="one-time-code" maxlength="6"><button id="verifyEnrollBtn" class="btn primary" type="button">Confirm MFA setup</button></div>
-          <div id="mfaVerify" class="hidden mfa-box"><label for="mfaVerifyCode">Authenticator code</label><input id="mfaVerifyCode" inputmode="numeric" autocomplete="one-time-code" maxlength="6"><button id="verifyMfaBtn" class="btn primary" type="button">Unlock credential access</button></div><p id="mfaMsg" class="form-msg"></p></div>
       </div>
     </section>
   </section>
   <div id="toast" class="toast hidden" role="status"></div>
-  <div id="passwordModal" class="modal-back hidden" role="dialog" aria-modal="true" aria-labelledby="vaultTitle"><div class="modal"><button id="closeVault" class="modal-close" type="button" aria-label="Close">×</button><div class="eyebrow">PROTECTED RECORD</div><h2 id="vaultTitle">Reveal portal password</h2><p class="subtle">Requires verified staff MFA and your separate vault passphrase. Every retrieval is logged by the database.</p><label for="vaultInput">Vault passphrase</label><input id="vaultInput" type="password" autocomplete="off" placeholder="Enter strong vault passphrase"><button id="revealVaultBtn" type="button" class="btn primary wide">Reveal for 20 seconds</button><div id="vaultResult" class="vault-result hidden"></div><p id="vaultMsg" class="form-msg"></p></div></div>
   <div id="screenshotOverlay" class="screenshot-overlay hidden"><p class="screenshot-hint">Tap receipt to return</p><div id="screenshotTarget"></div></div>
 </div>
 </body>
