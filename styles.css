@@ -3,3 +3,26 @@
 @media(max-width:950px){.columns,.receipt-grid{grid-template-columns:1fr}.receipt-preview-panel{max-width:560px;width:100%;margin:0 auto}.workspace{max-width:740px}}
 @media(max-width:520px){.topbar{height:67px;padding-inline:13px}.brand strong{font-size:16px}.brand-icon{width:36px;height:36px}.workspace{padding:18px 12px 100px}.nav{display:grid;grid-template-columns:repeat(3,1fr);gap:1px;margin-bottom:24px}.nav-btn{padding:11px 7px;font-size:12px}.panel{padding:19px 15px;border-radius:13px}.page-heading{margin-bottom:17px}.heading-mark{display:none}.fields-two{grid-template-columns:1fr}.conversion-box{gap:8px}.conversion-box strong{font-size:20px}.receipt-tools{grid-template-columns:1fr 1fr}.auth-card{padding:22px}.screenshot-overlay{padding:7px 5px}.screenshot-overlay .receipt-logo-row{margin-top:0}.screenshot-overlay .receipt-inside{padding:15px 19px 15px}.screenshot-overlay .receipt-caption{margin-top:15px}.screenshot-overlay .receipt-card h3{font-size:23px}.screenshot-overlay .receipt-details div{padding:10px 0}.screenshot-overlay .main-receipt-money{padding:15px 7px}}
 @media print{body{background:#fff!important}.topbar,.nav,.page-heading,.demo-notice,.receipt-grid>.panel:first-child,.section-title,.receipt-tools,#recordMsg,#toast,.screenshot-hint{display:none!important}.workspace{padding:0}.columns,.receipt-grid{display:block}.receipt-preview-panel{box-shadow:none;border:0;padding:0;width:100%;max-width:450px;margin:0 auto}.receipt-card{border:0;box-shadow:none;break-inside:avoid}.receipt-inside{padding:20px 23px}.screenshot-overlay{position:static;padding:0;display:block}.screenshot-overlay .receipt-card{margin:0 auto}}
+
+/* v3: optional notes visible in client/IB enquiry */
+textarea {
+  display: block;
+  width: 100%;
+  min-height: 104px;
+  padding: 13px 14px;
+  border-radius: 12px;
+  border: 1px solid var(--line, #d4e0e9);
+  background: var(--input-bg, #ffffff);
+  color: inherit;
+  font: inherit;
+  resize: vertical;
+}
+.record-notes {
+  margin: 12px 0;
+  padding: 12px 14px;
+  background: #f0f7fb;
+  border: 1px solid #dbeaf2;
+  border-radius: 12px;
+}
+.record-notes b { font-size: 12px; color: #275578; }
+.record-notes p { white-space: pre-wrap; overflow-wrap: anywhere; margin: 5px 0 0; }
