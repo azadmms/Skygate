@@ -1,88 +1,76 @@
-# SkyGate Operations v3 — publishing and Supabase setup
+# SkyGate Operations v4 — Deployment & migration guide
 
-## 1. Important: choose your database path
+## A. Update the website
 
-**Already using SkyGate Operations v2 with Supabase?**
+1. Open the ZIP and extract it.
+2. Upload `index.html`, `styles.css`, `app.js`, `assets/`, `.nojekyll`, and any unchanged files to the ROOT of https://github.com/azadmms/Skygate.
+3. **Do not overwrite an existing configured `config.js`**. Preserve its Supabase URL and publishable key. Upload the included blank `config.js` only if installing for the first time, then fill its public URL/key.
+4. GitHub Settings → Pages → Deploy from a branch → `main` → `/(root)` → Save.
+5. Check the site's exact path: https://azadmms.github.io/Skygate/.
+6. Reload in Safari (a hard refresh if older JS was cached); reopen the Home Screen shortcut if applicable.
 
-1. In Supabase, create a backup/export of your existing clients, IBs, MT5 accounts, receipts, and any stored encrypted credentials you still need to retain elsewhere.
-2. Open Supabase **SQL Editor → New query**.
-3. Copy and run only `database/upgrade_v2_to_v3.sql`.
-4. Read the output. Fix any errors before publishing the updated frontend.
-5. The migration keeps existing client/IB/MT5/receipt records and adds `notes`; it permanently deletes existing stored portal-password ciphertext, the credential reveal function, and its audit table.
-6. Do **not** run `schema_v3_fresh.sql` against an existing database. If your database is older than v2, migrate to v2 first or assess its existing schema manually.
+## B. Database changes
 
-**Using a new, empty Supabase project?**
+### Existing v3 project
 
-1. Create a Supabase project.
-2. Open **SQL Editor → New query**.
-3. Copy and run only `database/schema_v3_fresh.sql`.
-4. Confirm the tables exist: `staff_users`, `clients`, `ibs`, `mt5_accounts`, `exchange_rates`, `deposit_receipts`.
-5. The stored initial exchange rate `1500` is an example, **not a real-time market quote**. Change it before producing real deposit records.
+Open Supabase Dashboard → select the SkyGate project → SQL Editor → New query.
 
-## 2. Configure authorized staff access
+- Back up your database before changes.
+- Paste and run `database/upgrade_v3_to_v4.sql`.
+- It **revokes anon/authenticated access to receipt records**. Existing historical receipts remain in the table; they are not shown in the website and new receipt requests are never inserted.
+- If you later decide to delete historical receipts completely, do this separately after backup, with administrator approval.
 
-1. In Supabase, open **Authentication → Users** and create an account for yourself. Disable public signups in authentication settings so strangers cannot create accounts.
-2. Copy that user's **UUID** (not the email address).
-3. Open **SQL Editor**, paste the following and replace the UUID:
+### Existing v2 project
 
-   ```sql
-   insert into public.staff_users (user_id, role)
-   values ('YOUR-AUTH-USER-UUID', 'admin')
-   on conflict (user_id) do update set role=excluded.role;
-   ```
+Run `database/upgrade_v2_to_v3.sql` first (its password removal is destructive; back up), then the v4 upgrade.
 
-4. Sign in with that staff account on the website. The database Row Level Security policies allow only approved staff users to see or change data.
-5. Never put your Supabase `service_role` / secret key, database password, or customer credentials in GitHub. Use only your publishable (or legacy anon) key in the browser, together with RLS.
+### New project
 
-## 3. Edit the site's Supabase connection
+Run `database/schema_v4_fresh.sql`. Create an authorized staff user in Supabase Auth, then in SQL Editor:
 
-In your downloaded `config.js`, enter:
-
-```javascript
-window.SKYGATE_CONFIG = {
-  supabaseUrl: 'https://YOUR-PROJECT.supabase.co',
-  supabasePublishableKey: 'YOUR-PUBLISHABLE-KEY'
-};
+```sql
+insert into public.staff_users (user_id,role)
+values ('YOUR-AUTH-USER-UUID','admin');
 ```
 
-Find these under your Supabase project's dashboard/API settings. **Do not paste a secret or service-role key**. Confirm that RLS is enabled on all operational tables before entering any real client records.
+Then add your URL and public publishable key to `config.js`.
 
-## 4. Publish on GitHub Pages
+## C. Daily workflow
 
-Your existing GitHub repository is `azadmms/Skygate`.
+1. Open **Receipt**.
+2. Search by MT5 account, email, or client name. Pick a match if one exists; manual account numbers still work.
+3. Enter the desired USD or IQD amount. Check the saved IQD-per-USD rate. Use Save rate if changing the persistent rate.
+4. Generate receipt. The exact WhatsApp message appears underneath.
+5. Tap **Copy message**, open the relevant WhatsApp group, and paste it.
+6. Tap **Screenshot view** and take an iPhone screenshot of the receipt plus four-line message.
+7. Tap screenshot to close, or switch to another tab to clear the fields automatically.
 
-1. Extract the latest ZIP.
-2. Open `https://github.com/azadmms/Skygate` and upload the extracted files to the `main` branch, **replacing previous versions of `index.html`, `app.js`, `styles.css`**, while **keeping your existing configured `config.js`** (or editing the included placeholder if new), and preserving `assets` and `database` folder paths. Upload individual files, not the ZIP itself.
-3. Commit changes.
-4. Open **Settings → Pages** and select **Deploy from a branch → main → /(root)**. If already configured, do not change it.
-5. Check **Actions** until the Pages build completes. Expected URL: `https://azadmms.github.io/Skygate/`.
-6. On iPhone, use Safari → Share → Add to Home Screen. The site uses a responsive layout and is suitable for taking a direct receipt screenshot.
+The message is exactly:
 
-## 5. Test all-optional fields and notes
+```
+Deposit Iraq SkyGate LD
+<Client field>
+<MT5 account field>
+<USD equivalent without comma, followed by $>
+```
 
-1. Sign in as approved staff.
-2. Open **IBs → Add introducing broker**. Enter just an internal note, leave all other fields blank, save. You should see an **Unnamed IB #...** record.
-3. Open **Clients → Register client**. Enter a note only, leave name/email/phone/MT5/IB blank, save. You should see **Unnamed client #...** in the directory.
-4. Edit that client and enter a name, email, one or more MT5 numbers, and choose an IB if desired.
-5. Open **Enquiry**, type the name, note text, or account prefix. Notes should appear below matching clients and IBs.
-6. Enter an already-used client email, phone, or MT5 number. The site/database should reject duplicate identifiers.
-7. Open **Receipt**, search by client name/email/MT5 or use an unregistered MT5 number directly. Enter USD or IQD and check both conversions with the saved exchange rate. Screenshot or save the record.
-8. Refresh: notes and saved rate should still come from Supabase, not browser memory.
+Example:
 
-## 6. What 'all fields optional' means
+```
+Deposit Iraq SkyGate LD
+Azad
+1300725
+1000$
+```
 
-- New IB or client rows can be saved with no entered business fields at all. Each record receives a unique ID automatically.
-- MT5 account *entries*, when provided, must be 4–24 digits. Blank entries are ignored. Multiple MT5 accounts may link to a single client.
-- Names are **not globally unique**, because different clients may share a name. Blank and unspecified values may repeat. Unique provided identifiers remain protected by database indexes.
-- The **receipt form** still requires an MT5 account and positive monetary amount/rate, because a useful receipt needs them. Making **database entry fields** optional does not remove receipt validation.
-- Do not store portal passwords in notes. Free-text notes are visible to authorized staff using the enquiry interface.
+## D. What is saved?
 
-## 7. Security and limitations
+**Saved to Supabase** when logged in: client/IB profiles and linked MT5 accounts, notes, and exchange rates on Save rate.
 
-- Public GitHub Pages hosts static frontend files. It is not a secure database by itself. All real data lives in Supabase and should be protected by staff authentication and tested RLS.
-- This version has removed the client and IB portal-password subsystem; staff still use a password to sign in through Supabase Auth.
-- Test as an unauthorized/non-staff user to confirm that client records and notes are inaccessible. Use real-device passcode and preferably staff MFA.
-- Adding a client with MT5 accounts is atomic for new clients through PostgreSQL `register_client`. On edits, client attributes and additional MT5 accounts are saved in separate operations; take care if a second operation fails.
-- Notes are internal and might contain personal information. Obtain appropriate consent and avoid entering secrets.
-- Receipt data is entered by staff and does not independently confirm NEEX credited an MT5 trading account.
-- Client/IB lists initially load up to 1,000 records and interactive searches are limited. For a larger database, add server-side pagination.
+**Not saved**: receipt drafts, completed deposit requests, WhatsApp message text, copied clipboard content, and screenshots.
+
+## E. Notes
+
+- The exchange rate is a manual staff-defined rate, not a live FX quote.
+- Your website and Supabase must be accessed over HTTPS for the browser clipboard API to work smoothly on iPhone. The Copy button includes a fallback, but browser permissions can still block it.
+- This document is a **request for deposit processing**, not independent evidence that the broker credited funds.

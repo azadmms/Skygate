@@ -4,13 +4,12 @@ const $ = id => document.getElementById(id);
 const FIELDS_IB = 'id,ib_code,name,email,phone,trading_account_number,notes,created_at,updated_at';
 const FIELDS_CLIENT = 'id,ib_id,full_name,email,phone,notes,created_at,updated_at';
 const FIELDS_ACC = 'id,client_id,account_number,label,created_at';
-const FIELD_RECEIPT = 'id,reference_code,client_id,mt5_account_id,ib_id,client_name_snapshot,account_number,source_currency,source_amount,amount_iqd,amount_usd,exchange_rate,created_by,created_at,record_status';
 const CONFIG = window.SKYGATE_CONFIG || {};
 const IS_LIVE = Boolean(CONFIG.supabaseUrl && CONFIG.supabasePublishableKey && window.supabase?.createClient);
 const db = IS_LIVE ? window.supabase.createClient(CONFIG.supabaseUrl,CONFIG.supabasePublishableKey) : null;
 
 const S = {
-  user:null,role:'',ibs:[],clients:[],accounts:[],receipts:[],rate:1500,
+  user:null,role:'',ibs:[],clients:[],accounts:[],rate:1500,
   rateUpdatedAt:null,receipt:null,chosenClient:null,chosenAccount:null,
   directorySequence:0,ibSequence:0,demoClientCounter:2
 };
@@ -44,7 +43,7 @@ function demoData(){
   S.ibs=[{id:'ib-demo-1',ib_code:'IB-100',name:'Example IB Partner',email:'ib@example.test',phone:'',trading_account_number:'991234',notes:'Demo IB note: regional partner.'}];
   S.clients=[{id:'client-demo-1',ib_id:'ib-demo-1',full_name:'Sample Client Ahmed',email:'sample@example.test',phone:'+9647000000000',notes:'Demo note: contact by phone in business hours.'},{id:'client-demo-2',ib_id:'ib-demo-1',full_name:'Sample Client Sara',email:'sara@example.test',phone:'+9647111111111',notes:null}];
   S.accounts=[{id:'acct-demo-1',client_id:'client-demo-1',account_number:'1315001'},{id:'acct-demo-2',client_id:'client-demo-1',account_number:'1315002'},{id:'acct-demo-3',client_id:'client-demo-2',account_number:'1499888'}];
-  S.receipts=[];S.rate=1500;
+  S.rate=1500;
 }
 
 async function start(){
@@ -70,27 +69,57 @@ async function refreshAll(){
     db.from('ibs').select(FIELDS_IB).order('name').limit(1000),
     db.from('clients').select(FIELDS_CLIENT).order('full_name').limit(1000),
     db.from('mt5_accounts').select(FIELDS_ACC).order('account_number').limit(1000),
-    db.from('exchange_rates').select('id,iqd_per_usd,updated_at').eq('id',1).maybeSingle(),
-    db.from('deposit_receipts').select(FIELD_RECEIPT).order('created_at',{ascending:false}).limit(100)
+    db.from('exchange_rates').select('id,iqd_per_usd,updated_at').eq('id',1).maybeSingle()
   ];
   const out=await Promise.all(requests);for(const r of out){if(r.error)throw r.error;}
-  S.ibs=out[0].data||[];S.clients=out[1].data||[];S.accounts=out[2].data||[];S.receipts=out[4].data||[];
+  S.ibs=out[0].data||[];S.clients=out[1].data||[];S.accounts=out[2].data||[];
   S.rate=Number(out[3].data?.iqd_per_usd ?? 1500);S.rateUpdatedAt=out[3].data?.updated_at||null;
   $('receiptRate').value=S.rate;
   await redrawData();
 }
 async function redrawData(){
-  fillIbOptions(S.ibs);renderClients(S.clients);renderIbs(S.ibs);renderHistory();updateConversion();renderSettingsRate();
+  fillIbOptions(S.ibs);renderClients(S.clients);renderIbs(S.ibs);updateConversion();renderSettingsRate();
 }
 function renderSettingsRate(){ $('settingsRate').textContent=`${fmtRate(S.rate)} IQD / USD`;
   $('rateMeta').textContent=S.rateUpdatedAt?`Saved in Supabase · ${dateIraq(S.rateUpdatedAt)}`:(IS_LIVE?'Rate not yet updated by staff. Confirm before real use.':'Demo rate. Connect Supabase to save across devices.');
 }
+// Navigation clears every unfinished form and search, but preserves the database-saved IQD rate.
 function openTab(tab){
+  const current=document.querySelector('.nav-btn.active')?.dataset.tab;
+  if(current!==tab){
+    resetReceiptForm();
+    resetClientForm();
+    resetIbForm();
+    clearSearches();
+  }
   document.querySelectorAll('.tab-panel').forEach(p=>p.classList.add('hidden'));
   $(`tab-${tab}`).classList.remove('hidden');
   document.querySelectorAll('.nav-btn').forEach(btn=>btn.classList.toggle('active',btn.dataset.tab===tab));
   if(tab==='enquiry'){scheduleSearch('enquirySearch','enquiryResults');}
   window.scrollTo({top:0,behavior:'smooth'});
+}
+function clearSearches(){
+  S.directorySequence++;
+  S.ibSequence++;
+  Object.values(debounceTimers).forEach(clearTimeout);
+  ['enquirySearch','clientListSearch','ibListSearch'].forEach(id=>$(id).value='');
+  $('enquiryResults').innerHTML='';
+  renderClients(S.clients);
+  renderIbs(S.ibs);
+}
+function resetReceiptForm(){
+  $('receiptForm').reset();
+  // A locally edited but unsaved rate is discarded. The last saved rate survives navigation.
+  $('receiptRate').value=String(S.rate);
+  $('receiptSearch').value='';
+  $('receiptMatches').innerHTML='';
+  S.chosenClient=null;S.chosenAccount=null;S.receipt=null;
+  $('receiptPlaceholder').classList.remove('hidden');
+  $('receiptReady').classList.add('hidden');
+  $('whatsappText').textContent='';
+  showMsg('receiptMsg','');
+  showMsg('copyMsg','');
+  updateConversion();
 }
 function calculate(){
   const rate=Number($('receiptRate').value),amount=Number($('receiptAmountInput').value),cur=$('receiptCurrency').value;
@@ -129,7 +158,7 @@ function generateReceipt(){
     client_id:linkedClient?.id||null,mt5_account_id:linkedAcc?.id||null,ib_id:linkedClient?.ib_id||null,
     source_currency:c.source,source_amount:c.source==='USD'?rounded2(c.sourceAmount):Math.round(c.sourceAmount),
     amount_iqd:c.iqd,amount_usd:c.usd,exchange_rate:c.rate,created_at:new Date().toISOString(),record_status:'recorded'};
-  S.receipt=m;drawReceipt(m);showMsg('receiptMsg','Receipt generated. Review details before saving to Supabase.');
+  S.receipt=m;drawReceipt(m);showMsg('receiptMsg','Receipt prepared for screenshot and WhatsApp. Nothing is saved to the database.');
 }
 function drawReceipt(m){
   $('receiptPlaceholder').classList.add('hidden');$('receiptReady').classList.remove('hidden');
@@ -139,34 +168,44 @@ function drawReceipt(m){
   $('rName').textContent=m.client_name_snapshot||'Not specified';$('rAccount').textContent=m.account_number;
   $('rUSD').textContent=formatUSD(m.amount_usd);$('rIQD').textContent=formatIQD(m.amount_iqd);
   $('rRate').textContent=`1 USD = ${fmtRate(m.exchange_rate)} IQD`;$('rRef').textContent=m.reference_code;
-  $('recordBtn').disabled=Boolean(m.id);$('recordBtn').textContent=m.id?'Saved in Supabase':'Save record to Supabase';
-  showMsg('recordMsg',m.id?'Saved SkyGate intake record. Broker credit is not independently verified.':'Not saved yet. Screenshot view is ready.');
+  // Generate the copyable WhatsApp message directly from this receipt's values.
+  $('whatsappText').textContent=buildWhatsappMessage(m);
+  showMsg('copyMsg','Not saved to the database. Copy the message, then take the screenshot.');
 }
-async function saveReceipt(){
-  const m=S.receipt;if(!m)return;
-  if(!IS_LIVE){showMsg('recordMsg','Demo only: connect Supabase to save real receipt history.',true);return;}
-  if(m.id){toast('Receipt is already saved.');return;}
+function formatWhatsappUSD(value){
+  // 1000 -> 1000$, 1050.50 -> 1050.50$, exactly as requested (no currency commas).
+  return Number(value).toFixed(2).replace(/\.00$/,'').replace(/(\.\d)0$/,'$1')+'$';
+}
+function buildWhatsappMessage(receipt){
+  return `Deposit Iraq SkyGate LD\n${receipt.client_name_snapshot||'Not specified'}\n${receipt.account_number}\n${formatWhatsappUSD(receipt.amount_usd)}`;
+}
+async function copyWhatsappMessage(){
+  if(!S.receipt)return;
+  const value=buildWhatsappMessage(S.receipt);
   try{
-    const payload={reference_code:m.reference_code,client_id:m.client_id,mt5_account_id:m.mt5_account_id,ib_id:m.ib_id,
-      client_name_snapshot:m.client_name_snapshot,account_number:m.account_number,amount_iqd:m.amount_iqd,
-      amount_usd:m.amount_usd,exchange_rate:m.exchange_rate,source_currency:m.source_currency,
-      source_amount:m.source_amount,record_status:'recorded',created_by:S.user.id};
-    const {data,error}=await db.from('deposit_receipts').insert(payload).select(FIELD_RECEIPT).single();
-    if(error)throw error;S.receipt=data;S.receipts.unshift(data);drawReceipt(data);renderHistory();toast('Receipt record saved.');
-  }catch(e){showMsg('recordMsg',errorMsg(e),true);}
+    if(navigator.clipboard?.writeText){
+      await navigator.clipboard.writeText(value);
+    }else{
+      const temp=document.createElement('textarea');
+      temp.value=value;temp.style.position='fixed';temp.style.opacity='0';
+      document.body.appendChild(temp);temp.focus();temp.select();
+      if(!document.execCommand('copy'))throw Error('Copy permission was denied.');
+      temp.remove();
+    }
+    showMsg('copyMsg','WhatsApp text copied. Paste it into your group.');
+    toast('WhatsApp request copied.');
+  }catch(e){
+    showMsg('copyMsg','Automatic copy was blocked. Select the text above to copy manually.',true);
+  }
 }
 function startScreenshot(){
-  const target=$('screenshotTarget');target.replaceChildren($('receiptCard'));
+  const target=$('screenshotTarget');target.replaceChildren($('receiptCaptureArea'));
   setView($('screenshotOverlay'),true);document.body.style.overflow='hidden';
   window.scrollTo(0,0);
 }
 function endScreenshot(){
-  $('receiptReady').insertBefore($('receiptCard'),$('receiptTools'));
+  $('receiptReady').insertBefore($('receiptCaptureArea'),$('receiptTools'));
   setView($('screenshotOverlay'),false);document.body.style.overflow='';
-}
-function openHistory(ref){const found=S.receipts.find(x=>x.id===ref);if(!found)return;S.receipt=found;openTab('receipt');drawReceipt(found);$('receiptAccount').value=found.account_number;$('receiptName').value=found.client_name_snapshot;$('receiptCurrency').value=found.source_currency;$('receiptAmountInput').value=found.source_amount;$('receiptRate').value=found.exchange_rate;updateConversion();}
-function renderHistory(){const node=$('historyList');if(!S.receipts.length){node.innerHTML='<div class="empty-result">No saved deposit records yet.</div>';return;}
-  node.innerHTML=S.receipts.map(m=>`<div class="result-card"><div class="result-header"><div><h3>${escapeHtml(m.account_number)} · ${escapeHtml(m.client_name_snapshot)}</h3><p>${escapeHtml(formatUSD(m.amount_usd))} / ${escapeHtml(formatIQD(m.amount_iqd))}</p><div class="meta">${escapeHtml(dateIraq(m.created_at))} · ${escapeHtml(m.reference_code)}</div></div><span class="small-tag">Recorded</span></div><div class="result-actions"><button type="button" data-action="history" data-id="${escapeHtml(m.id)}">Reopen receipt</button></div></div>`).join('');
 }
 
 function sanitizeSearch(input){return String(input||'').trim().replace(/[%,()*]/g,'').slice(0,100);}
@@ -337,16 +376,15 @@ async function saveIb(e){
 function delegateAction(e){const btn=e.target.closest('button[data-action]');if(!btn)return;
   const {action,id,account}=btn.dataset;
   if(action==='chooseReceipt'||action==='useReceipt'){
-    const c=byId(S.clients,id),a=byId(S.accounts,account);fillReceiptFromClient(c,a);openTab('receipt');
+    const c=byId(S.clients,id),a=byId(S.accounts,account);openTab('receipt');fillReceiptFromClient(c,a);
   }else if(action==='editClient')editClient(id);
   else if(action==='editIb')editIb(id);
-  else if(action==='history')openHistory(id);
 }
 function wireEvents(){
   document.querySelectorAll('.nav-btn').forEach(b=>b.addEventListener('click',()=>openTab(b.dataset.tab)));
   $('loginForm').addEventListener('submit',async e=>{e.preventDefault();showMsg('loginMsg','');const email=$('loginEmail').value.trim(),password=$('loginPass').value;
     try{const {data,error}=await db.auth.signInWithPassword({email,password});if(error)throw error;$('loginPass').value='';await signedIn(data.user);}catch(err){showMsg('loginMsg',errorMsg(err),true);}});
-  $('logoutBtn').addEventListener('click',async()=>{if(IS_LIVE)await db.auth.signOut();S.user=null;S.clients=[];S.ibs=[];S.accounts=[];S.receipts=[];S.receipt=null;setView($('workspace'),false);setView($('loginView'),true);$('logoutBtn').classList.add('hidden');});
+  $('logoutBtn').addEventListener('click',async()=>{if(IS_LIVE)await db.auth.signOut();S.user=null;S.clients=[];S.ibs=[];S.accounts=[];S.receipt=null;setView($('workspace'),false);setView($('loginView'),true);$('logoutBtn').classList.add('hidden');});
   ['receiptAmountInput','receiptRate','receiptCurrency'].forEach(id=>$(id).addEventListener('input',updateConversion));
   $('saveRateBtn').addEventListener('click',saveRate);
   $('receiptForm').addEventListener('submit',e=>{e.preventDefault();generateReceipt();});
@@ -355,9 +393,14 @@ function wireEvents(){
   $('enquirySearch').addEventListener('input',()=>scheduleSearch('enquirySearch','enquiryResults'));
   $('clientListSearch').addEventListener('input',()=>scheduleSearch('clientListSearch','clientList'));
   $('ibListSearch').addEventListener('input',()=>scheduleSearch('ibListSearch','ibList'));
-  ['receiptMatches','enquiryResults','clientList','ibList','historyList'].forEach(id=>$(id).addEventListener('click',delegateAction));
+  ['receiptMatches','enquiryResults','clientList','ibList'].forEach(id=>$(id).addEventListener('click',delegateAction));
   $('screenshotBtn').addEventListener('click',startScreenshot);$('screenshotTarget').addEventListener('click',endScreenshot);
-  $('printBtn').addEventListener('click',()=>window.print());$('recordBtn').addEventListener('click',saveReceipt);
+  $('printBtn').addEventListener('click',()=>window.print());
+  $('copyWhatsappBtn').addEventListener('click',copyWhatsappMessage);
+  $('clearReceiptBtn').addEventListener('click',resetReceiptForm);
+  $('clearEnquiryBtn').addEventListener('click',()=>{ $('enquirySearch').value='';scheduleSearch('enquirySearch','enquiryResults'); });
+  $('clearClientBtn').addEventListener('click',resetClientForm);
+  $('clearIbBtn').addEventListener('click',resetIbForm);
   $('addAccountBtn').addEventListener('click',()=>addAccountLine());$('clientForm').addEventListener('submit',saveClient);$('cancelClientEdit').addEventListener('click',resetClientForm);
   $('clientIbLookup').addEventListener('input',()=>{clearTimeout(debounceTimers.ib);debounceTimers.ib=setTimeout(suggestIB,210);});
   $('ibForm').addEventListener('submit',saveIb);$('cancelIbEdit').addEventListener('click',resetIbForm);

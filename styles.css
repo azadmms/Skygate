@@ -26,3 +26,35 @@ textarea {
 }
 .record-notes b { font-size: 12px; color: #275578; }
 .record-notes p { white-space: pre-wrap; overflow-wrap: anywhere; margin: 5px 0 0; }
+
+
+/* v4: WhatsApp copy + instant screenshot, never persisted */
+.clear-search-btn{width:auto;min-height:36px;margin-top:10px;padding:7px 13px}
+.receipt-capture-area{display:block;width:100%}
+.whatsapp-message{margin-top:12px;border:1px solid #cfe0ec;border-radius:12px;padding:14px 16px;background:#f7fbfd;color:#173b55}
+.whatsapp-bar{display:flex;align-items:center;justify-content:space-between;gap:8px;margin-bottom:10px}
+.whatsapp-bar h3{margin:0 0 3px;font-size:14px}
+.whatsapp-bar p{margin:0;color:var(--muted);font-size:11px}
+.whatsapp-bar button{flex:none;font-size:12px;min-height:36px;padding:8px 10px}
+.whatsapp-text{margin:0;font:600 15px/1.55 -apple-system,BlinkMacSystemFont,"Segoe UI",Arial,sans-serif;white-space:pre-wrap;overflow-wrap:anywhere;user-select:text;-webkit-user-select:text;color:#143a56}
+.screenshot-overlay .receipt-capture-area{width:min(100%,450px)}
+.screenshot-overlay .receipt-card{width:100%}
+.screenshot-overlay .whatsapp-message{margin-top:7px;padding:10px 15px;background:#fff;border-color:#dde7ee}
+.screenshot-overlay .whatsapp-bar{display:none}
+.screenshot-overlay .whatsapp-text{font-size:15px;line-height:1.4}
+.screenshot-overlay .screenshot-hint{display:none}
+@media(max-width:520px){
+ .receipt-tools{grid-template-columns:1fr 1fr}
+ .screenshot-overlay .receipt-inside{padding:10px 17px 11px}
+ .screenshot-overlay .receipt-caption{margin-top:10px}
+ .screenshot-overlay .receipt-card h3{font-size:21px}
+ .screenshot-overlay .receipt-date{margin-bottom:9px}
+ .screenshot-overlay .main-receipt-money{padding:11px 6px}
+ .screenshot-overlay .main-receipt-money strong{font-size:25px;margin:4px 0}
+ .screenshot-overlay .receipt-details{margin:7px 0}
+ .screenshot-overlay .receipt-details div{padding:7px 0}
+ .screenshot-overlay .receipt-disclosure{margin-top:10px;padding-top:8px}
+ .screenshot-overlay .receipt-logo-row img.receipt-neex{height:32px}
+ .screenshot-overlay .whatsapp-message{margin-top:5px;padding:9px 13px}
+}
+@media print{.whatsapp-message{break-inside:avoid}.whatsapp-bar{display:none}.receipt-capture-area{width:100%}}

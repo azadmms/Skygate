@@ -1,30 +1,40 @@
-# SkyGate Operations v3 — Notes instead of portal passwords
+# SkyGate Operations v4 — Deposit requests + WhatsApp copy
 
-GitHub Pages frontend for NEEX/SkyGate deposit records and Supabase-backed client and IB management.
+A mobile-first GitHub Pages website for SkyGate / NEEX operations.
 
-## What changed in v3
+## What changed in v4
 
-- Removed client and IB **portal password fields**, credential reveal buttons, password vault, and password-specific MFA screens. **Staff sign-in remains required** for real Supabase data.
-- Added optional **Client notes** and **IB notes** fields. Notes appear in the client/IB directories and live enquiry search results and can be edited later.
-- All client and IB profile fields are **optional**, including names, emails, phones, IB codes and MT5 accounts. Records can be saved blank and receive a generated database ID.
-- If supplied, client emails, normalized phone numbers and MT5 account numbers must be unique. IB codes, emails, and trading account numbers must also be unique. Empty fields are allowed across many records.
-- Receipt workflow is unchanged: search by name/email/MT5, enter an unregistered MT5 number manually, convert USD ⇄ IQD at the stored rate, and use screenshot view.
+- **Form auto-clear**: moving between tabs clears unfinished entry fields, searches, and the on-screen receipt preview.
+- **Clear fields buttons**: explicit Clear buttons on receipt, client, IB, and enquiry screens.
+- **Saved exchange rate preserved**: the IQD-per-USD rate from Supabase survives tab changes and page refreshes; an unsaved rate edit is discarded when navigating away.
+- **Exact WhatsApp message**: receipt-generated, four lines, copied using the Copy message button:
 
-## Files
+  ```
+  Deposit Iraq SkyGate LD
+  Azad
+  1300725
+  1000$
+  ```
 
-- `index.html`, `styles.css`, `app.js`: website files
-- `config.js`: set your public Supabase Project URL and publishable key
-- `assets/`: the SkyGate and NEEX images you supplied
-- `database/schema_v3_fresh.sql`: **new, empty Supabase database only**
-- `database/upgrade_v2_to_v3.sql`: **existing SkyGate v2 database only**
-- `SETUP_GUIDE.md`: migration, security, and deployment instructions
+  Those lines come from fixed text, receipt client name, receipt MT5 account, and **converted USD amount**, even if the user entered IQD originally.
+- **Screenshot view** contains both the SkyGate receipt and the WhatsApp text in one frame. No visible copy control on the screenshot.
+- **No receipt history/storage**: generating, copying and printing a receipt do not save the receipt or WhatsApp message to Supabase. The old Save record button and History tab were removed.
+- Client, IB, MT5 account and notes management remain connected to Supabase when configured. Stored exchange rates remain available.
 
-## Security and data loss warning
+## GitHub deployment
 
-**Back up your existing Supabase database before running the upgrade script.** `upgrade_v2_to_v3.sql` removes the old portal password ciphertext columns and their retrieval mechanism. This is destructive and cannot be undone without a backup. Do not enter passwords or authentication credentials in free-text notes.
+1. Download and extract the ZIP.
+2. Upload its contents, not the ZIP, to the root of GitHub repository `azadmms/Skygate`, overwriting older website files.
+3. If you previously configured **config.js**, **keep your existing configured version**. The ZIP contains only a blank template.
+4. Under **Settings → Pages**, set Source to Deploy from a branch, Branch `main`, Directory `/ (root)`.
+5. Open https://azadmms.github.io/Skygate/ after publishing.
+6. iPhone: Safari → Share → Add to Home Screen.
 
-The website can run in demo mode without Supabase, but demo records disappear after a refresh. Live records require an approved staff login and PostgreSQL Row Level Security.
+## Supabase
 
-Read `SETUP_GUIDE.md` before updating.
+- **Already on SkyGate v3**: run `database/upgrade_v3_to_v4.sql` once in the Supabase SQL Editor. This revokes web API access to the old receipts table without deleting history.
+- **Brand-new Supabase project**: run `database/schema_v4_fresh.sql` only. It creates clients, IBs, MT5 accounts, staff roles, and exchange rates, but no receipts table.
+- **Still on SkyGate v2**: first back up and run `database/upgrade_v2_to_v3.sql`, then `database/upgrade_v3_to_v4.sql`.
+- Never publish secret/service-role keys. Use only the public Supabase project URL and publishable key, with staff authentication and RLS enabled.
 
-**Already have a working `config.js` on GitHub?** Keep that configured file when uploading v3. The ZIP includes a blank template for new projects, and overwriting your live connection settings would put the site back in demo mode.
+The template shows a **deposit request**, not confirmation that NEEX has credited a trading account.
