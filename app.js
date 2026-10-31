@@ -263,7 +263,7 @@ function renderClientCard(c,accounts){const ib=byId(S.ibs,c.ib_id);
   <p>${escapeHtml(c.email||'No email')} · ${escapeHtml(c.phone||'No phone')}</p>${accountTags(accounts)}${displayNotes(c.notes)}
   <div class="result-actions"><button type="button" data-action="editClient" data-id="${escapeHtml(c.id)}">Edit details</button>${accounts.length?`<button type="button" data-action="useReceipt" data-id="${escapeHtml(c.id)}" data-account="${escapeHtml(accounts[0].id)}">Generate receipt</button>`:''}</div></article>`;
 }
-function renderIbCard(i,clients){return `<article class="result-card"><div class="result-header"><div><h3>${escapeHtml(labelIb(i))}</h3><div class="meta">IB ${escapeHtml(i.ib_code||'Not assigned')} · Trading ${escapeHtml(i.trading_account_number||'—')}</div></div><span class="small-tag">${clients.length} clients</span></div><p>${escapeHtml(i.email||'No email')} ${i.phone?' · '+escapeHtml(i.phone):''}</p>${displayNotes(i.notes)}${clients.length?`<p><b>Clients:</b> ${escapeHtml(clients.map(c=>labelClient(c)).join(', '))}</p>`:''}<div class="result-actions"><button data-action="editIb" data-id="${escapeHtml(i.id)}" type="button">Edit IB</button></div></article>`;}
+function renderIbCard(i,clients){return `<article class="result-card"><div class="result-header"><div><h3>${escapeHtml(labelIb(i))}</h3><div class="meta">IB ${escapeHtml(i.ib_code||'Not assigned')} · Trading ${escapeHtml(i.trading_account_number||'—')}</div></div><span class="small-tag">${clients.length} clients</span></div><p>${escapeHtml(i.email||'No email')} ${i.phone?' · '+escapeHtml(i.phone):''}</p>${displayNotes(i.notes)}${clients.length?`<p><b>Clients:</b> ${escapeHtml(clients.map(c=>labelClient(c)).join(', '))}</p>`:''}<div class="result-actions"><button data-action="editIb" data-id="${escapeHtml(i.id)}" type="button">Edit IB</button><button data-action="useIbReceipt" data-id="${escapeHtml(i.id)}" type="button">Generate receipt</button></div></article>`;}
 function renderClients(data){$('clientList').innerHTML=data.length?data.slice(0,60).map(c=>renderClientCard(c,acctForClient(c.id))).join(''):'<div class="empty-result">No clients found.</div>';}
 function renderIbs(data){$('ibList').innerHTML=data.length?data.slice(0,60).map(i=>renderIbCard(i,S.clients.filter(c=>c.ib_id===i.id))).join(''):'<div class="empty-result">No IBs found.</div>';}
 function renderEnquiry(data){const node=$('enquiryResults');const ibCards=data.ibs.map(i=>renderIbCard(i,data.clients.filter(c=>c.ib_id===i.id)));
@@ -377,6 +377,18 @@ function delegateAction(e){const btn=e.target.closest('button[data-action]');if(
   const {action,id,account}=btn.dataset;
   if(action==='chooseReceipt'||action==='useReceipt'){
     const c=byId(S.clients,id),a=byId(S.accounts,account);openTab('receipt');fillReceiptFromClient(c,a);
+  }else if(action==='useIbReceipt'){
+    const ib=byId(S.ibs,id);
+    if(!ib)return;
+    openTab('receipt');
+    S.chosenClient=null;S.chosenAccount=null;
+    $('receiptName').value=ib.name||ib.ib_code||'';
+    // The receipt requires a numeric trading account. IB numbers can be alphanumeric.
+    const accountNumber=String(ib.trading_account_number||'').trim();
+    $('receiptAccount').value=/^\d{4,24}$/.test(accountNumber)?accountNumber:'';
+    $('receiptSearch').value='';
+    $('receiptMatches').innerHTML='';
+    if(!$('receiptAccount').value)showMsg('receiptMsg','IB selected. Enter its numeric trading account number to generate a receipt.');
   }else if(action==='editClient')editClient(id);
   else if(action==='editIb')editIb(id);
 }
