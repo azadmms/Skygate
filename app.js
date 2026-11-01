@@ -2,7 +2,7 @@
 
 const $ = id => document.getElementById(id);
 const NEEX_PORTAL_URL = 'https://cp.neex.com/login/index?redirect=/';
-const FIELDS_IB = 'id,ib_code,name,email,phone,trading_account_number,notes,created_at,updated_at';
+const FIELDS_IB = 'id,ib_code,name,email,phone,trading_account_number,spread_26,spread_36,spread_26_url,spread_36_url,notes,created_at,updated_at';
 const FIELDS_CLIENT = 'id,ib_id,full_name,email,phone,notes,created_at,updated_at';
 const FIELDS_ACC = 'id,client_id,account_number,label,created_at';
 const CONFIG = window.SKYGATE_CONFIG || {};
@@ -45,7 +45,7 @@ function accountTags(arr){
 function canDeleteMt5(){return !IS_LIVE || S.role==='admin';}
 function lineMatch(t,value){return String(value??'').toLowerCase().includes(t.toLowerCase());}
 function demoData(){
-  S.ibs=[{id:'ib-demo-1',ib_code:'IB-100',name:'Example IB Partner',email:'ib@example.test',phone:'',trading_account_number:'991234',notes:'Demo IB note: regional partner.'}];
+  S.ibs=[{id:'ib-demo-1',ib_code:'IB-100',name:'Example IB Partner',email:'ib@example.test',phone:'',trading_account_number:'991234',spread_26:true,spread_36:true,spread_26_url:'https://example.test/ib26',spread_36_url:'https://example.test/ib36',notes:'Demo IB note: regional partner.'}];
   S.clients=[{id:'client-demo-1',ib_id:'ib-demo-1',full_name:'Sample Client Ahmed',email:'sample@example.test',phone:'+9647000000000',notes:'Demo note: contact by phone in business hours.'},{id:'client-demo-2',ib_id:'ib-demo-1',full_name:'Sample Client Sara',email:'sara@example.test',phone:'+9647111111111',notes:null}];
   S.accounts=[{id:'acct-demo-1',client_id:'client-demo-1',account_number:'1315001'},{id:'acct-demo-2',client_id:'client-demo-1',account_number:'1315002'},{id:'acct-demo-3',client_id:'client-demo-2',account_number:'1499888'}];
   S.rate=1500;
@@ -454,7 +454,16 @@ function renderClientCard(c,accounts){const ib=byId(S.ibs,c.ib_id);
   <p>${escapeHtml(c.email||'No email')} · ${escapeHtml(c.phone||'No phone')}</p>${accountTags(accounts)}${displayNotes(c.notes)}
   <div class="result-actions"><button type="button" data-action="editClient" data-id="${escapeHtml(c.id)}">Edit details</button>${accounts.length?`<button type="button" data-action="useReceipt" data-id="${escapeHtml(c.id)}" data-account="${escapeHtml(accounts[0].id)}">Generate receipt</button>`:''}${portalButton(c.email)}</div></article>`;
 }
-function renderIbCard(i,clients){return `<article class="result-card"><div class="result-header"><div><h3>${escapeHtml(labelIb(i))}</h3><div class="meta">IB ${escapeHtml(i.ib_code||'Not assigned')} · Trading ${escapeHtml(i.trading_account_number||'—')}</div></div><span class="small-tag">${clients.length} clients</span></div><p>${escapeHtml(i.email||'No email')} ${i.phone?' · '+escapeHtml(i.phone):''}</p>${displayNotes(i.notes)}${clients.length?`<p><b>Clients:</b> ${escapeHtml(clients.map(c=>labelClient(c)).join(', '))}</p>`:''}<div class="result-actions"><button data-action="editIb" data-id="${escapeHtml(i.id)}" type="button">Edit IB</button><button data-action="useIbReceipt" data-id="${escapeHtml(i.id)}" type="button">Generate receipt</button>${portalButton(i.email)}</div></article>`;}
+function renderIbSpreadDetails(i){
+  const enabled=[];
+  if(i.spread_26)enabled.push('Spread 26');
+  if(i.spread_36)enabled.push('Spread 36');
+  const chips=enabled.length?enabled.map(s=>`<span class="ib-spread-badge">${s}</span>`).join(''):'<span class="meta">Spreads not assigned</span>';
+  const links=[[26,i.spread_26,i.spread_26_url],[36,i.spread_36,i.spread_36_url]].filter(x=>x[1]&&x[2]).map(x=>[x[0],x[2]]);
+  const linksHtml=links.length?`<div class="ib-link-list">${links.map(([spread,url])=>`<div class="ib-link-row"><div class="ib-link-description"><strong>Spread ${spread} IB link</strong><span title="${escapeHtml(url)}">${escapeHtml(url)}</span></div><button type="button" data-action="copyIbSpreadLink" data-id="${escapeHtml(i.id)}" data-spread="${spread}" aria-label="Copy Spread ${spread} link">Copy</button></div>`).join('')}</div>`:'';
+  return `<div class="ib-spread-details">${chips}</div>${linksHtml}`;
+}
+function renderIbCard(i,clients){return `<article class="result-card"><div class="result-header"><div><h3>${escapeHtml(labelIb(i))}</h3><div class="meta">IB ${escapeHtml(i.ib_code||'Not assigned')} · Trading ${escapeHtml(i.trading_account_number||'—')}</div></div><span class="small-tag">${clients.length} clients</span></div><p>${escapeHtml(i.email||'No email')} ${i.phone?' · '+escapeHtml(i.phone):''}</p>${renderIbSpreadDetails(i)}${displayNotes(i.notes)}${clients.length?`<p><b>Clients:</b> ${escapeHtml(clients.map(c=>labelClient(c)).join(', '))}</p>`:''}<div class="result-actions"><button data-action="editIb" data-id="${escapeHtml(i.id)}" type="button">Edit IB</button><button data-action="useIbReceipt" data-id="${escapeHtml(i.id)}" type="button">Generate receipt</button>${portalButton(i.email)}</div></article>`;}
 function renderClients(data){$('clientList').innerHTML=data.length?data.slice(0,60).map(c=>renderClientCard(c,acctForClient(c.id))).join(''):'<div class="empty-result">No clients found.</div>';}
 function renderIbs(data){$('ibList').innerHTML=data.length?data.slice(0,60).map(i=>renderIbCard(i,S.clients.filter(c=>c.ib_id===i.id))).join(''):'<div class="empty-result">No IBs found.</div>';}
 function renderEnquiry(data){const node=$('enquiryResults');const ibCards=data.ibs.map(i=>renderIbCard(i,data.clients.filter(c=>c.ib_id===i.id)));
@@ -613,8 +622,26 @@ async function saveClient(e){
     resetClientForm();showMsg('clientMsg',`Client saved successfully${IS_LIVE?' in Supabase':' in demo memory'} (${savedId}).`);toast('Client saved.');
   }catch(err){showMsg('clientMsg',errorMsg(err),true);}
 }
-function resetIbForm(){$('ibForm').reset();$('editIbId').value='';$('ibFormTitle').textContent='Add introducing broker';$('ibSaveBtn').textContent='Save IB';$('cancelIbEdit').classList.add('hidden');showMsg('ibMsg','');}
-function editIb(id){const i=byId(S.ibs,id);if(!i)return;openTab('ibs');resetIbForm();$('editIbId').value=i.id;$('ibFormTitle').textContent='Edit introducing broker';$('ibSaveBtn').textContent='Save changes';$('cancelIbEdit').classList.remove('hidden');$('ibCode').value=i.ib_code||'';$('ibName').value=i.name||'';$('ibNotes').value=i.notes||'';$('ibEmail').value=i.email||'';$('ibPhone').value=i.phone||'';$('ibTradingAccount').value=i.trading_account_number||'';window.scrollTo({top:0,behavior:'smooth'});}
+function updateIbLinkCopyButtons(){
+  $('copyIbSpread26Btn').disabled=!$('ibSpread26Url').value.trim();
+  $('copyIbSpread36Btn').disabled=!$('ibSpread36Url').value.trim();
+}
+function copyTextFallback(value){
+  const el=document.createElement('textarea');
+  el.value=value;el.setAttribute('readonly','');el.style.position='fixed';el.style.opacity='0';
+  document.body.appendChild(el);el.select();let ok=false;
+  try{ok=document.execCommand('copy');}catch(_){ok=false;}
+  el.remove();return ok;
+}
+async function copyIbLink(url){
+  if(!url){toast('No link saved for this spread.');return;}
+  let ok=false;
+  if(navigator.clipboard?.writeText){try{await navigator.clipboard.writeText(url);ok=true;}catch(_){}}
+  if(!ok)ok=copyTextFallback(url);
+  toast(ok?'IB link copied.':'Could not copy the link. Please select and copy it manually.');
+}
+function resetIbForm(){$('ibForm').reset();$('editIbId').value='';$('ibFormTitle').textContent='Add introducing broker';$('ibSaveBtn').textContent='Save IB';$('cancelIbEdit').classList.add('hidden');showMsg('ibMsg','');updateIbLinkCopyButtons();}
+function editIb(id){const i=byId(S.ibs,id);if(!i)return;openTab('ibs');resetIbForm();$('editIbId').value=i.id;$('ibFormTitle').textContent='Edit introducing broker';$('ibSaveBtn').textContent='Save changes';$('cancelIbEdit').classList.remove('hidden');$('ibCode').value=i.ib_code||'';$('ibName').value=i.name||'';$('ibNotes').value=i.notes||'';$('ibEmail').value=i.email||'';$('ibPhone').value=i.phone||'';$('ibTradingAccount').value=i.trading_account_number||'';$('ibSpread26').checked=Boolean(i.spread_26);$('ibSpread36').checked=Boolean(i.spread_36);$('ibSpread26Url').value=i.spread_26_url||'';$('ibSpread36Url').value=i.spread_36_url||'';updateIbLinkCopyButtons();window.scrollTo({top:0,behavior:'smooth'});}
 async function saveIb(e){
   e.preventDefault();showMsg('ibMsg','');
   try{
@@ -625,13 +652,26 @@ async function saveIb(e){
     const phone=cleanText($('ibPhone').value);
     const trading_account_number=cleanText($('ibTradingAccount').value);
     const notes=cleanText($('ibNotes').value);
+    const spread_26=$('ibSpread26').checked;
+    const spread_36=$('ibSpread36').checked;
+    const spread_26_url=cleanText($('ibSpread26Url').value);
+    const spread_36_url=cleanText($('ibSpread36Url').value);
+    for(const [type,url] of [[26,spread_26_url],[36,spread_36_url]]){
+      if(url){
+        let parsed;
+        try{parsed=new URL(url);}catch(_){throw Error(`Spread ${type} IB link must be a valid HTTP or HTTPS URL.`);}
+        if(!['https:','http:'].includes(parsed.protocol)||!parsed.hostname||parsed.username||parsed.password){
+          throw Error(`Spread ${type} IB link must be a valid HTTP or HTTPS URL without embedded credentials.`);
+        }
+      }
+    }
     if(trading_account_number&&!/^[0-9]{4,24}$/.test(trading_account_number))throw Error('Entered IB trading account must have 4–24 digits. Empty is allowed.');
     if(S.ibs.some(i=>i.id!==id&&(
       (ib_code&&i.ib_code?.toLowerCase()===ib_code.toLowerCase()) ||
       (email&&i.email?.toLowerCase()===email) ||
       (trading_account_number&&i.trading_account_number===trading_account_number)
     )))throw Error('IB already registered (same number, email or trading account).');
-    const values={ib_code,name,email,phone,trading_account_number,notes};
+    const values={ib_code,name,email,phone,trading_account_number,spread_26,spread_36,spread_26_url,spread_36_url,notes};
     if(IS_LIVE){
       const r=id?await db.from('ibs').update({...values,updated_at:new Date().toISOString()}).eq('id',id):await db.from('ibs').insert(values);
       if(r.error)throw r.error;await refreshAll();
@@ -660,6 +700,10 @@ function delegateAction(e){const btn=e.target.closest('button[data-action]');if(
     $('receiptSearch').value='';
     $('receiptMatches').innerHTML='';
     if(!$('receiptAccount').value)showMsg('receiptMsg','IB selected. Enter its numeric trading account number to generate a receipt.');
+  }else if(action==='copyIbSpreadLink'){
+    const ib=byId(S.ibs,id);const spread=btn.dataset.spread;
+    if(!ib||!['26','36'].includes(spread))return;
+    void copyIbLink(spread==='26'?ib.spread_26_url:ib.spread_36_url);
   }else if(action==='goToPortal'){
     void goToPortal(btn.dataset.email||'');
   }else if(action==='editClient')editClient(id);
@@ -689,6 +733,9 @@ function wireEvents(){
   $('addAccountBtn').addEventListener('click',()=>addAccountLine());$('clientForm').addEventListener('submit',saveClient);$('cancelClientEdit').addEventListener('click',resetClientForm);
   $('clientIbLookup').addEventListener('input',()=>{clearTimeout(debounceTimers.ib);debounceTimers.ib=setTimeout(suggestIB,210);});
   $('ibForm').addEventListener('submit',saveIb);$('cancelIbEdit').addEventListener('click',resetIbForm);
+  ['ibSpread26Url','ibSpread36Url'].forEach(id=>$(id).addEventListener('input',updateIbLinkCopyButtons));
+  $('copyIbSpread26Btn').addEventListener('click',()=>void copyIbLink($('ibSpread26Url').value.trim()));
+  $('copyIbSpread36Btn').addEventListener('click',()=>void copyIbLink($('ibSpread36Url').value.trim()));
   $('mt5DeleteForm').addEventListener('submit',submitDeleteMt5);
   $('mt5DeleteCancel').addEventListener('click',closeDeleteMt5);
   $('mt5DeleteDialog').addEventListener('close',()=>{pendingDeleteAccountId=null;$('mt5DeletePin').value='';});
