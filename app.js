@@ -38,8 +38,9 @@ function displayNotes(notes){return notes?`<div class="record-notes"><b>Notes</b
 function acctForClient(id){return S.accounts.filter(a=>a.client_id===id);}
 function byId(collection,id){return collection.find(x=>x.id===id);}
 function setView(el,show){el.classList.toggle('hidden',!show);}
+// Enquiry and search cards are read-only; deleting saved accounts is only available in Edit details.
 function accountTags(arr){
-  return `<div class="account-tags">${arr.length?arr.map(a=>`<span class="account-tag">MT5 ${escapeHtml(a.account_number)}${canDeleteMt5()?` <button type="button" class="mt5-delete-icon" data-action="deleteMt5" data-id="${escapeHtml(a.id)}" aria-label="Delete MT5 account ${escapeHtml(a.account_number)}" title="Delete MT5 account">×</button>`:''}</span>`).join(''):'<span class="meta">No linked MT5 accounts</span>'}</div>`;
+  return `<div class="account-tags">${arr.length?arr.map(a=>`<span class="account-tag">MT5 ${escapeHtml(a.account_number)}</span>`).join(''):'<span class="meta">No linked MT5 accounts</span>'}</div>`;
 }
 function canDeleteMt5(){return !IS_LIVE || S.role==='admin';}
 function lineMatch(t,value){return String(value??'').toLowerCase().includes(t.toLowerCase());}
@@ -490,7 +491,11 @@ function addAccountLine(value='',locked=false,accountId=''){
 let pendingDeleteAccountId=null;
 function askDeleteMt5(accountId){
   const acct=byId(S.accounts,accountId);
-  if(!acct || !canDeleteMt5())return;
+  // Even if a stale UI element is clicked, restrict the dialog to the current edit form.
+  if(!acct || !canDeleteMt5() || !$('editClientId').value ||
+      acct.client_id!==$('editClientId').value ||
+      !document.querySelector('.nav-btn.active[data-tab="clients"]') ||
+      !$('accountInputs').querySelector(`.account-line[data-account-id="${accountId}"]`))return;
   pendingDeleteAccountId=accountId;
   $('mt5DeleteNumber').textContent=acct.account_number;
   $('mt5DeletePin').value='';
@@ -525,8 +530,7 @@ async function submitDeleteMt5(e){
       });
       if(error)throw error;
       if(!data?.ok){
-        const msgs={wrong_pin:`Incorrect PIN. ${data?.attempts_remaining??0} attempts remaining.`,
-          locked:'Too many attempts. Try again after 15 minutes.',
+        const msgs={wrong_pin:'Incorrect PIN. Please try again.',
           not_found:'This MT5 account no longer exists. Refresh the records.'};
         throw Error(msgs[data?.code]||'Unable to delete this MT5 account.');
       }
@@ -656,8 +660,6 @@ function delegateAction(e){const btn=e.target.closest('button[data-action]');if(
     $('receiptSearch').value='';
     $('receiptMatches').innerHTML='';
     if(!$('receiptAccount').value)showMsg('receiptMsg','IB selected. Enter its numeric trading account number to generate a receipt.');
-  }else if(action==='deleteMt5'){
-    askDeleteMt5(id);
   }else if(action==='goToPortal'){
     void goToPortal(btn.dataset.email||'');
   }else if(action==='editClient')editClient(id);
