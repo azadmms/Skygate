@@ -1,6 +1,7 @@
 'use strict';
 
 const $ = id => document.getElementById(id);
+const NEEX_PORTAL_URL = 'https://cp.neex.com/login/index?redirect=/';
 const FIELDS_IB = 'id,ib_code,name,email,phone,trading_account_number,notes,created_at,updated_at';
 const FIELDS_CLIENT = 'id,ib_id,full_name,email,phone,notes,created_at,updated_at';
 const FIELDS_ACC = 'id,client_id,account_number,label,created_at';
@@ -258,12 +259,45 @@ function renderReceiptMatches(results){const all=[];
   for(const c of results.clients){const accounts=results.accounts.filter(a=>a.client_id===c.id);if(accounts.length){for(const a of accounts)all.push({c,a});}else all.push({c,a:null});}
   $('receiptMatches').innerHTML=all.length?all.slice(0,25).map(x=>`<button type="button" class="match-option" data-action="chooseReceipt" data-id="${escapeHtml(x.c.id)}" data-account="${escapeHtml(x.a?.id||'')}"><b>${escapeHtml(labelClient(x.c))}</b><small>${x.a?`MT5 ${escapeHtml(x.a.account_number)}`:'No linked MT5 — enter account manually'} · ${escapeHtml(formattedClientIb(x.c))}</small></button>`).join(''):'<div class="field-note">No registered match. You can enter the MT5 number manually below.</div>';
 }
+function portalButton(email){
+  // The email is copied on user action. NEEX is a separate origin, so this
+  // website cannot fill its login fields or interact with its CAPTCHA.
+  return `<button type="button" data-action="goToPortal" data-email="${escapeHtml(email||'')}">Go to portal</button>`;
+}
+function copyPortalEmail(email){
+  if(!email)return Promise.resolve(true);
+  if(navigator.clipboard?.writeText){
+    return navigator.clipboard.writeText(email).then(()=>true).catch(()=>copyPortalEmailFallback(email));
+  }
+  return Promise.resolve(copyPortalEmailFallback(email));
+}
+function copyPortalEmailFallback(email){
+  const temp=document.createElement('textarea');
+  temp.value=email;
+  temp.style.position='fixed';temp.style.opacity='0';
+  document.body.appendChild(temp);temp.focus();temp.select();
+  let ok=false;
+  try{ok=document.execCommand('copy');}catch(e){ok=false;}
+  temp.remove();
+  return ok;
+}
+async function goToPortal(email){
+  const address=String(email||'').trim();
+  const copied=await copyPortalEmail(address);
+  if(address && !copied){
+    toast('Email could not be copied. Copy it from the search result and try again.');
+    return;
+  }
+  // Navigate directly to the official portal; the user fills the password
+  // with a password manager and completes any CAPTCHA on NEEX itself.
+  window.location.assign(NEEX_PORTAL_URL);
+}
 function renderClientCard(c,accounts){const ib=byId(S.ibs,c.ib_id);
   return `<article class="result-card"><div class="result-header"><div><h3>${escapeHtml(labelClient(c))}</h3><div class="meta">${escapeHtml(ib?`${ib.ib_code||'No IB number'} · ${labelIb(ib)}`:'Unassigned IB')}</div></div><span class="small-tag">Client</span></div>
   <p>${escapeHtml(c.email||'No email')} · ${escapeHtml(c.phone||'No phone')}</p>${accountTags(accounts)}${displayNotes(c.notes)}
-  <div class="result-actions"><button type="button" data-action="editClient" data-id="${escapeHtml(c.id)}">Edit details</button>${accounts.length?`<button type="button" data-action="useReceipt" data-id="${escapeHtml(c.id)}" data-account="${escapeHtml(accounts[0].id)}">Generate receipt</button>`:''}</div></article>`;
+  <div class="result-actions"><button type="button" data-action="editClient" data-id="${escapeHtml(c.id)}">Edit details</button>${accounts.length?`<button type="button" data-action="useReceipt" data-id="${escapeHtml(c.id)}" data-account="${escapeHtml(accounts[0].id)}">Generate receipt</button>`:''}${portalButton(c.email)}</div></article>`;
 }
-function renderIbCard(i,clients){return `<article class="result-card"><div class="result-header"><div><h3>${escapeHtml(labelIb(i))}</h3><div class="meta">IB ${escapeHtml(i.ib_code||'Not assigned')} · Trading ${escapeHtml(i.trading_account_number||'—')}</div></div><span class="small-tag">${clients.length} clients</span></div><p>${escapeHtml(i.email||'No email')} ${i.phone?' · '+escapeHtml(i.phone):''}</p>${displayNotes(i.notes)}${clients.length?`<p><b>Clients:</b> ${escapeHtml(clients.map(c=>labelClient(c)).join(', '))}</p>`:''}<div class="result-actions"><button data-action="editIb" data-id="${escapeHtml(i.id)}" type="button">Edit IB</button><button data-action="useIbReceipt" data-id="${escapeHtml(i.id)}" type="button">Generate receipt</button></div></article>`;}
+function renderIbCard(i,clients){return `<article class="result-card"><div class="result-header"><div><h3>${escapeHtml(labelIb(i))}</h3><div class="meta">IB ${escapeHtml(i.ib_code||'Not assigned')} · Trading ${escapeHtml(i.trading_account_number||'—')}</div></div><span class="small-tag">${clients.length} clients</span></div><p>${escapeHtml(i.email||'No email')} ${i.phone?' · '+escapeHtml(i.phone):''}</p>${displayNotes(i.notes)}${clients.length?`<p><b>Clients:</b> ${escapeHtml(clients.map(c=>labelClient(c)).join(', '))}</p>`:''}<div class="result-actions"><button data-action="editIb" data-id="${escapeHtml(i.id)}" type="button">Edit IB</button><button data-action="useIbReceipt" data-id="${escapeHtml(i.id)}" type="button">Generate receipt</button>${portalButton(i.email)}</div></article>`;}
 function renderClients(data){$('clientList').innerHTML=data.length?data.slice(0,60).map(c=>renderClientCard(c,acctForClient(c.id))).join(''):'<div class="empty-result">No clients found.</div>';}
 function renderIbs(data){$('ibList').innerHTML=data.length?data.slice(0,60).map(i=>renderIbCard(i,S.clients.filter(c=>c.ib_id===i.id))).join(''):'<div class="empty-result">No IBs found.</div>';}
 function renderEnquiry(data){const node=$('enquiryResults');const ibCards=data.ibs.map(i=>renderIbCard(i,data.clients.filter(c=>c.ib_id===i.id)));
@@ -389,6 +423,8 @@ function delegateAction(e){const btn=e.target.closest('button[data-action]');if(
     $('receiptSearch').value='';
     $('receiptMatches').innerHTML='';
     if(!$('receiptAccount').value)showMsg('receiptMsg','IB selected. Enter its numeric trading account number to generate a receipt.');
+  }else if(action==='goToPortal'){
+    void goToPortal(btn.dataset.email||'');
   }else if(action==='editClient')editClient(id);
   else if(action==='editIb')editIb(id);
 }
