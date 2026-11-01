@@ -34,7 +34,10 @@ function rounded2(x){return Math.round((Number(x)+Number.EPSILON)*100)/100;}
 function formattedClientIb(client){const ib=S.ibs.find(i=>i.id===client.ib_id);return ib?`${ib.ib_code||'No IB number'} · ${ib.name||'Unnamed IB'}`:'No assigned IB';}
 function labelClient(c){return c?.full_name?.trim() || `Unnamed client #${String(c?.id||'').slice(0,8)}`;}
 function labelIb(i){return i?.name?.trim() || `Unnamed IB #${String(i?.id||'').slice(0,8)}`;}
-function displayNotes(notes){return notes?`<div class="record-notes"><b>Notes</b><p>${escapeHtml(notes)}</p></div>`:'';}
+function displayNotes(notes,recordType,recordId){
+  if(!notes)return '';
+  return `<div class="record-notes"><div class="record-notes-heading"><b>Notes</b><button type="button" class="copy-note-btn" data-action="copyRecordNote" data-kind="${recordType}" data-id="${escapeHtml(recordId)}" aria-label="Copy ${recordType} note">Copy</button></div><p>${escapeHtml(notes)}</p></div>`;
+}
 function acctForClient(id){return S.accounts.filter(a=>a.client_id===id);}
 function byId(collection,id){return collection.find(x=>x.id===id);}
 function setView(el,show){el.classList.toggle('hidden',!show);}
@@ -451,7 +454,7 @@ async function goToPortal(email){
 }
 function renderClientCard(c,accounts){const ib=byId(S.ibs,c.ib_id);
   return `<article class="result-card"><div class="result-header"><div><h3>${escapeHtml(labelClient(c))}</h3><div class="meta">${escapeHtml(ib?`${ib.ib_code||'No IB number'} · ${labelIb(ib)}`:'Unassigned IB')}</div></div><span class="small-tag">Client</span></div>
-  <p>${escapeHtml(c.email||'No email')} · ${escapeHtml(c.phone||'No phone')}</p>${accountTags(accounts)}${displayNotes(c.notes)}
+  <p>${escapeHtml(c.email||'No email')} · ${escapeHtml(c.phone||'No phone')}</p>${accountTags(accounts)}${displayNotes(c.notes,'client',c.id)}
   <div class="result-actions"><button type="button" data-action="editClient" data-id="${escapeHtml(c.id)}">Edit details</button>${accounts.length?`<button type="button" data-action="useReceipt" data-id="${escapeHtml(c.id)}" data-account="${escapeHtml(accounts[0].id)}">Generate receipt</button>`:''}${portalButton(c.email)}</div></article>`;
 }
 function renderIbSpreadDetails(i){
@@ -463,7 +466,7 @@ function renderIbSpreadDetails(i){
   const linksHtml=links.length?`<div class="ib-link-list">${links.map(([spread,url])=>`<div class="ib-link-row"><div class="ib-link-description"><strong>Spread ${spread} IB link</strong><span title="${escapeHtml(url)}">${escapeHtml(url)}</span></div><button type="button" data-action="copyIbSpreadLink" data-id="${escapeHtml(i.id)}" data-spread="${spread}" aria-label="Copy Spread ${spread} link">Copy</button></div>`).join('')}</div>`:'';
   return `<div class="ib-spread-details">${chips}</div>${linksHtml}`;
 }
-function renderIbCard(i,clients){return `<article class="result-card"><div class="result-header"><div><h3>${escapeHtml(labelIb(i))}</h3><div class="meta">IB ${escapeHtml(i.ib_code||'Not assigned')} · Trading ${escapeHtml(i.trading_account_number||'—')}</div></div><span class="small-tag">${clients.length} clients</span></div><p>${escapeHtml(i.email||'No email')} ${i.phone?' · '+escapeHtml(i.phone):''}</p>${renderIbSpreadDetails(i)}${displayNotes(i.notes)}${clients.length?`<p><b>Clients:</b> ${escapeHtml(clients.map(c=>labelClient(c)).join(', '))}</p>`:''}<div class="result-actions"><button data-action="editIb" data-id="${escapeHtml(i.id)}" type="button">Edit IB</button><button data-action="useIbReceipt" data-id="${escapeHtml(i.id)}" type="button">Generate receipt</button>${portalButton(i.email)}</div></article>`;}
+function renderIbCard(i,clients){return `<article class="result-card"><div class="result-header"><div><h3>${escapeHtml(labelIb(i))}</h3><div class="meta">IB ${escapeHtml(i.ib_code||'Not assigned')} · Trading ${escapeHtml(i.trading_account_number||'—')}</div></div><span class="small-tag">${clients.length} clients</span></div><p>${escapeHtml(i.email||'No email')} ${i.phone?' · '+escapeHtml(i.phone):''}</p>${renderIbSpreadDetails(i)}${displayNotes(i.notes,'ib',i.id)}${clients.length?`<p><b>Clients:</b> ${escapeHtml(clients.map(c=>labelClient(c)).join(', '))}</p>`:''}<div class="result-actions"><button data-action="editIb" data-id="${escapeHtml(i.id)}" type="button">Edit IB</button><button data-action="useIbReceipt" data-id="${escapeHtml(i.id)}" type="button">Generate receipt</button>${portalButton(i.email)}</div></article>`;}
 function renderClients(data){$('clientList').innerHTML=data.length?data.slice(0,60).map(c=>renderClientCard(c,acctForClient(c.id))).join(''):'<div class="empty-result">No clients found.</div>';}
 function renderIbs(data){$('ibList').innerHTML=data.length?data.slice(0,60).map(i=>renderIbCard(i,S.clients.filter(c=>c.ib_id===i.id))).join(''):'<div class="empty-result">No IBs found.</div>';}
 function renderEnquiry(data){const node=$('enquiryResults');const ibCards=data.ibs.map(i=>renderIbCard(i,data.clients.filter(c=>c.ib_id===i.id)));
@@ -640,6 +643,17 @@ async function copyIbLink(url){
   if(!ok)ok=copyTextFallback(url);
   toast(ok?'IB link copied.':'Could not copy the link. Please select and copy it manually.');
 }
+async function copyRecordNote(kind,id){
+  const record=kind==='client'?byId(S.clients,id):kind==='ib'?byId(S.ibs,id):null;
+  const note=record?.notes;
+  if(!note){toast('No note available to copy.');return;}
+  let copied=false;
+  if(navigator.clipboard?.writeText){
+    try{await navigator.clipboard.writeText(note);copied=true;}catch(_){}
+  }
+  if(!copied)copied=copyTextFallback(note);
+  toast(copied?'Note copied.':'Could not copy note. Select the note text to copy manually.');
+}
 function resetIbForm(){$('ibForm').reset();$('editIbId').value='';$('ibFormTitle').textContent='Add introducing broker';$('ibSaveBtn').textContent='Save IB';$('cancelIbEdit').classList.add('hidden');showMsg('ibMsg','');updateIbLinkCopyButtons();}
 function editIb(id){const i=byId(S.ibs,id);if(!i)return;openTab('ibs');resetIbForm();$('editIbId').value=i.id;$('ibFormTitle').textContent='Edit introducing broker';$('ibSaveBtn').textContent='Save changes';$('cancelIbEdit').classList.remove('hidden');$('ibCode').value=i.ib_code||'';$('ibName').value=i.name||'';$('ibNotes').value=i.notes||'';$('ibEmail').value=i.email||'';$('ibPhone').value=i.phone||'';$('ibTradingAccount').value=i.trading_account_number||'';$('ibSpread26').checked=Boolean(i.spread_26);$('ibSpread36').checked=Boolean(i.spread_36);$('ibSpread26Url').value=i.spread_26_url||'';$('ibSpread36Url').value=i.spread_36_url||'';updateIbLinkCopyButtons();window.scrollTo({top:0,behavior:'smooth'});}
 async function saveIb(e){
@@ -700,6 +714,8 @@ function delegateAction(e){const btn=e.target.closest('button[data-action]');if(
     $('receiptSearch').value='';
     $('receiptMatches').innerHTML='';
     if(!$('receiptAccount').value)showMsg('receiptMsg','IB selected. Enter its numeric trading account number to generate a receipt.');
+  }else if(action==='copyRecordNote'){
+    void copyRecordNote(btn.dataset.kind,id);
   }else if(action==='copyIbSpreadLink'){
     const ib=byId(S.ibs,id);const spread=btn.dataset.spread;
     if(!ib||!['26','36'].includes(spread))return;
