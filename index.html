@@ -75,7 +75,7 @@
           </form>
         </div>
         <div class="panel receipt-preview-panel">
-          <div class="section-title"><span class="index-dot">02</span><div><h2>Receipt preview</h2><p>Optimized for iPhone screenshots</p></div></div>
+          <div class="section-title"><span class="index-dot">02</span><div><h2>Receipt preview</h2><p>Ready to share from your iPhone</p></div></div>
           <div id="receiptPlaceholder" class="placeholder"><div class="placeholder-symbol">▤</div><h3>Receipt ready when you are</h3><p>Enter a client account and amount to preview the deposit record.</p></div>
           <div id="receiptReady" class="hidden">
             <div id="receiptCaptureArea" class="receipt-capture-area">
@@ -100,13 +100,13 @@
             </article>
             <section class="whatsapp-message" aria-label="WhatsApp deposit request">
               <div class="whatsapp-bar">
-                <div><h3>WhatsApp deposit request</h3><p>Ready to paste with your screenshot</p></div>
+                <div><h3>WhatsApp deposit request</h3><p>Copy the text or share it with your receipt</p></div>
                 <button id="copyWhatsappBtn" class="btn secondary" type="button">Copy message</button>
               </div>
               <pre id="whatsappText" class="whatsapp-text"></pre>
             </section>
             </div>
-            <div id="receiptTools" class="receipt-tools"><button id="screenshotBtn" class="btn primary" type="button">Screenshot view</button><button id="printBtn" class="btn secondary" type="button">Print / PDF</button></div>
+            <div id="receiptTools" class="receipt-tools"><button id="shareReceiptBtn" class="btn primary" type="button" disabled>Preparing receipt image…</button><button id="printBtn" class="btn secondary" type="button">Print / PDF</button></div>
             <p id="copyMsg" class="field-note" aria-live="polite"></p>
           </div>
         </div>
@@ -162,7 +162,6 @@
     </section>
   </section>
   <div id="toast" class="toast hidden" role="status"></div>
-  <div id="screenshotOverlay" class="screenshot-overlay hidden"><p class="screenshot-hint">Tap receipt to return</p><div id="screenshotTarget"></div></div>
 </div>
 </body>
 </html>
