@@ -161,6 +161,19 @@
       </div>
     </section>
   </section>
+  <dialog id="mt5DeleteDialog" class="mt5-delete-dialog" aria-labelledby="mt5DeleteTitle" aria-describedby="mt5DeleteDescription">
+    <h2 id="mt5DeleteTitle">Delete MT5 account?</h2>
+    <p id="mt5DeleteDescription">You're about to permanently delete MT5 account <strong id="mt5DeleteNumber"></strong> from the SkyGate client database. This will not remove the client profile or other MT5 accounts.</p>
+    <form id="mt5DeleteForm" autocomplete="off">
+      <label for="mt5DeletePin">Deletion PIN</label>
+      <input id="mt5DeletePin" type="password" inputmode="numeric" pattern="[0-9]{4}" minlength="4" maxlength="4" placeholder="4-digit PIN" required autocomplete="off">
+      <p id="mt5DeleteMsg" class="form-msg" role="alert"></p>
+      <div class="mt5-dialog-actions">
+        <button id="mt5DeleteCancel" type="button" class="btn secondary">Cancel</button>
+        <button id="mt5DeleteConfirm" type="submit" class="btn mt5-danger">Delete account</button>
+      </div>
+    </form>
+  </dialog>
   <div id="toast" class="toast hidden" role="status"></div>
 </div>
 </body>
