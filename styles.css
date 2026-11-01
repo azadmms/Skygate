@@ -58,3 +58,46 @@ textarea {
  .screenshot-overlay .whatsapp-message{margin-top:5px;padding:9px 13px}
 }
 @media print{.whatsapp-message{break-inside:avoid}.whatsapp-bar{display:none}.receipt-capture-area{width:100%}}
+
+
+/* MT5 deletion controls */
+.account-tag .mt5-delete-icon {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 23px;
+  height: 23px;
+  margin-left: 5px;
+  padding: 0;
+  background: #fff;
+  border: 1px solid #efcaca;
+  border-radius: 50%;
+  color: #b72a36;
+  font-size: 18px;
+  font-weight: 750;
+  line-height: 1;
+}
+.account-line .mt5-form-delete {
+  color: #b72a36;
+  font-weight: 800;
+  font-size: 22px;
+  background: #fff6f6;
+  border-color: #f2d2d2;
+}
+.mt5-delete-dialog {
+  width: min(440px, calc(100vw - 28px));
+  max-height: calc(100dvh - 40px);
+  padding: 25px;
+  border: 1px solid #dce5eb;
+  border-radius: 17px;
+  background: #fff;
+  color: #18354b;
+  box-shadow: 0 20px 80px #061f3155;
+}
+.mt5-delete-dialog::backdrop {background: #081c2bb5;}
+.mt5-delete-dialog h2 {font-size: 21px; margin: 0 0 12px;}
+.mt5-delete-dialog p {font-size: 14px; line-height: 1.5;}
+.mt5-delete-dialog input {width: 100%;}
+.mt5-dialog-actions {display: grid; grid-template-columns: 1fr 1fr; gap: 9px; margin-top: 17px;}
+.btn.mt5-danger {background: #b42335; border-color: #b42335; color: white;}
+.btn.mt5-danger:hover {background: #931c2b;}
