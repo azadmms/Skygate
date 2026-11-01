@@ -115,6 +115,8 @@ function resetReceiptForm(){
   $('receiptSearch').value='';
   $('receiptMatches').innerHTML='';
   S.chosenClient=null;S.chosenAccount=null;S.receipt=null;
+  preparedReceiptFile=null;preparedReceiptPromise=null;
+  const shareButton=$('shareReceiptBtn');shareButton.disabled=true;shareButton.textContent='Generate receipt first';
   $('receiptPlaceholder').classList.remove('hidden');
   $('receiptReady').classList.add('hidden');
   $('whatsappText').textContent='';
@@ -159,7 +161,7 @@ function generateReceipt(){
     client_id:linkedClient?.id||null,mt5_account_id:linkedAcc?.id||null,ib_id:linkedClient?.ib_id||null,
     source_currency:c.source,source_amount:c.source==='USD'?rounded2(c.sourceAmount):Math.round(c.sourceAmount),
     amount_iqd:c.iqd,amount_usd:c.usd,exchange_rate:c.rate,created_at:new Date().toISOString(),record_status:'recorded'};
-  S.receipt=m;drawReceipt(m);showMsg('receiptMsg','Receipt prepared for screenshot and WhatsApp. Nothing is saved to the database.');
+  S.receipt=m;drawReceipt(m);prepareReceiptImage(m);showMsg('receiptMsg','Receipt generated. Share it on WhatsApp; nothing is saved to the database.');
 }
 function drawReceipt(m){
   $('receiptPlaceholder').classList.add('hidden');$('receiptReady').classList.remove('hidden');
@@ -171,7 +173,7 @@ function drawReceipt(m){
   $('rRate').textContent=`1 USD = ${fmtRate(m.exchange_rate)} IQD`;$('rRef').textContent=m.reference_code;
   // Generate the copyable WhatsApp message directly from this receipt's values.
   $('whatsappText').textContent=buildWhatsappMessage(m);
-  showMsg('copyMsg','Not saved to the database. Copy the message, then take the screenshot.');
+  showMsg('copyMsg','Your WhatsApp message is ready. Use Save & Share to send the receipt image.');
 }
 function formatWhatsappUSD(value){
   // 1000 -> 1000$, 1050.50 -> 1050.50$, exactly as requested (no currency commas).
@@ -201,14 +203,163 @@ async function copyWhatsappMessage(){
     showMsg('copyMsg','Automatic copy was blocked. Select the text above to copy manually.',true);
   }
 }
-function startScreenshot(){
-  const target=$('screenshotTarget');target.replaceChildren($('receiptCaptureArea'));
-  setView($('screenshotOverlay'),true);document.body.style.overflow='hidden';
-  window.scrollTo(0,0);
+// A real PNG is generated with browser Canvas, including both brand logos.
+// This avoids unreliable DOM screenshots in iOS Safari and requires no external library.
+let preparedReceiptFile=null;
+let preparedReceiptPromise=null;
+
+function loadShareImage(src){
+  return new Promise((resolve,reject)=>{
+    const img=new Image();
+    img.onload=()=>resolve(img);
+    img.onerror=()=>reject(new Error(`Could not load ${src}. Make sure you uploaded the assets folder.`));
+    img.src=src;
+  });
 }
-function endScreenshot(){
-  $('receiptReady').insertBefore($('receiptCaptureArea'),$('receiptTools'));
-  setView($('screenshotOverlay'),false);document.body.style.overflow='';
+function shareRoundRect(ctx,x,y,w,h,r,fill){
+  ctx.fillStyle=fill;
+  ctx.beginPath();ctx.roundRect(x,y,w,h,r);ctx.fill();
+}
+function shareText(ctx,value,x,y,{size=30,bold=false,color='#173b55',align='left',maxWidth=900}={}){
+  ctx.fillStyle=color;
+  ctx.textAlign=align;
+  ctx.textBaseline='alphabetic';
+  ctx.font=`${bold?'700':'400'} ${size}px -apple-system,BlinkMacSystemFont,"Segoe UI",Arial,sans-serif`;
+  ctx.fillText(String(value),x,y,maxWidth);
+}
+function renderReceiptCanvas(m,skyImg,neexImg){
+  const canvas=document.createElement('canvas');
+  canvas.width=1080;canvas.height=1370;
+  const c=canvas.getContext('2d');
+  if(!c)throw new Error('Image rendering is not supported in this browser.');
+  c.fillStyle='#ffffff';c.fillRect(0,0,1080,1370);
+  const gradient=c.createLinearGradient(75,0,1005,0);
+  gradient.addColorStop(0,'#154568');gradient.addColorStop(.55,'#3894c9');gradient.addColorStop(1,'#65c6cf');
+  shareRoundRect(c,72,28,936,27,13,gradient);
+  // Keep logos on white, as in the on-screen deposit request.
+  const skyHeight=112, skyWidth=112*skyImg.width/skyImg.height;
+  c.drawImage(skyImg,86,86,skyWidth,skyHeight);
+  shareText(c,'SKYGATE',86+skyWidth+22,135,{size:33,bold:true});
+  shareText(c,'T E C H N O L O G Y',86+skyWidth+22,161,{size:15,bold:true,color:'#56768b'});
+  const neexHeight=94,neexWidth=94*neexImg.width/neexImg.height;
+  c.drawImage(neexImg,980-neexWidth,89,neexWidth,neexHeight);
+  shareText(c,'SKYGATE TECHNOLOGY  ·  DEPOSIT REQUEST',88,249,{size:24,bold:true,color:'#3b8fb7'});
+  shareText(c,'Deposit request',88,322,{size:55,bold:true,color:'#173b55'});
+  shareText(c,dateIraq(m.created_at),88,378,{size:30,color:'#7c94a8'});
+  shareRoundRect(c,88,420,904,256,24,'#eaf5fb');
+  c.strokeStyle='#cde4f1';c.lineWidth=2;c.strokeRect(91,423,898,250);
+  shareText(c,'REQUESTED DEPOSIT',540,478,{size:25,bold:true,color:'#6394b0',align:'center'});
+  const primary=m.source_currency==='USD'?formatUSD(m.amount_usd):formatIQD(m.amount_iqd);
+  const secondary=m.source_currency==='USD'?`Equivalent: ${formatIQD(m.amount_iqd)}`:`Equivalent: ${formatUSD(m.amount_usd)}`;
+  shareText(c,primary,540,566,{size:68,bold:true,align:'center',maxWidth:815});
+  shareText(c,secondary,540,630,{size:32,color:'#63829a',align:'center'});
+  const rows=[
+    ['Client',m.client_name_snapshot||'Not specified'],
+    ['MT5 account',m.account_number],
+    ['Amount USD',formatUSD(m.amount_usd)],
+    ['Amount IQD',formatIQD(m.amount_iqd)],
+    ['Exchange rate',`1 USD = ${fmtRate(m.exchange_rate)} IQD`],
+    ['Reference',m.reference_code]
+  ];
+  let y=749;
+  for(const [label,value] of rows){
+    shareText(c,label,88,y,{size:31,color:'#748fa2'});
+    shareText(c,value,995,y,{size:31,bold:true,color:'#173b55',align:'right',maxWidth:550});
+    c.strokeStyle='#dce7ee';c.lineWidth=2;c.beginPath();c.moveTo(88,y+25);c.lineTo(992,y+25);c.stroke();
+    y+=91;
+  }
+  c.strokeStyle='#dce7ee';c.beginPath();c.moveTo(88,1249);c.lineTo(992,1249);c.stroke();
+  shareText(c,'Prepared by SkyGate Technology',88,1293,{size:27,bold:true,color:'#3e6d88'});
+  shareText(c,'Deposit request for processing; not a confirmation of NEEX account credit.',88,1332,{size:23,color:'#7993a5',maxWidth:900});
+  return canvas;
+}
+function pngFileFromCanvas(canvas,receipt){
+  const uri=canvas.toDataURL('image/png');
+  const binary=atob(uri.split(',')[1]);
+  const bytes=new Uint8Array(binary.length);
+  for(let i=0;i<binary.length;i++)bytes[i]=binary.charCodeAt(i);
+  const safeAccount=String(receipt.account_number).replace(/[^0-9]/g,'');
+  return new File([bytes],`SkyGate_Deposit_${safeAccount}.png`,{type:'image/png'});
+}
+function prepareReceiptImage(receipt){
+  preparedReceiptFile=null;
+  const button=$('shareReceiptBtn');
+  button.disabled=true;button.textContent='Preparing receipt image…';
+  preparedReceiptPromise=Promise.all([
+    loadShareImage('assets/skygate.png'),
+    loadShareImage('assets/neex.png')
+  ]).then(([skyImg,neexImg])=>{
+    const file=pngFileFromCanvas(renderReceiptCanvas(receipt,skyImg,neexImg),receipt);
+    if(S.receipt!==receipt)return null;
+    preparedReceiptFile=file;
+    button.disabled=false;button.textContent='Save & Share on WhatsApp';
+    return file;
+  }).catch(error=>{
+    if(S.receipt!==receipt)return null;
+    button.disabled=false;button.textContent='Save & Share on WhatsApp';
+    showMsg('copyMsg',`Could not prepare receipt image: ${error.message}`,true);
+    return null;
+  });
+}
+function copyWhatsappOnShare(text){
+  // First try a synchronous copy in the actual user click, preserving the user
+  // gesture for the native share sheet. iPhone may still deny clipboard access.
+  try{
+    const area=document.createElement('textarea');
+    area.value=text;
+    area.readOnly=true;
+    area.style.cssText='position:fixed;top:-1000px;opacity:0';
+    document.body.appendChild(area);
+    area.focus();area.select();area.setSelectionRange(0,area.value.length);
+    const ok=document.execCommand('copy');
+    area.remove();
+    if(ok)return true;
+  }catch(_){ /* Clipboard is optional; user can use Copy message button */ }
+  if(navigator.clipboard?.writeText){
+    navigator.clipboard.writeText(text).catch(()=>{});
+  }
+  return false;
+}
+function downloadReceiptImage(file){
+  const link=document.createElement('a');
+  const url=URL.createObjectURL(file);
+  link.href=url;link.download=file.name;
+  document.body.appendChild(link);link.click();link.remove();
+  setTimeout(()=>URL.revokeObjectURL(url),120000);
+}
+async function shareReceiptOnWhatsapp(){
+  const receipt=S.receipt;
+  if(!receipt)return;
+  const text=buildWhatsappMessage(receipt);
+  const file=preparedReceiptFile;
+  if(!file){
+    showMsg('copyMsg','Image is not ready. Generate the receipt again, or try again after the image is prepared.',true);
+    return;
+  }
+  const copied=copyWhatsappOnShare(text);
+  // iOS Safari: native Share Sheet can show WhatsApp and Save Image. It cannot
+  // auto-save to Photos or force-select WhatsApp for security reasons.
+  if(navigator.share && (!navigator.canShare || navigator.canShare({files:[file]}))){
+    try{
+      await navigator.share({files:[file],text,title:'SkyGate deposit request'});
+      showMsg('copyMsg',copied?'Receipt shared. WhatsApp request copied; paste if the caption is missing.':'Receipt shared. The message was included in the Share Sheet; use Copy message if WhatsApp omitted it.');
+      return;
+    }catch(error){
+      if(error?.name==='AbortError'){
+        showMsg('copyMsg','Sharing cancelled. Tap Save & Share to try again.');
+        return;
+      }
+      // Some apps or browsers do not accept a file and text together.
+      try{
+        await navigator.share({files:[file],title:'SkyGate deposit request'});
+        showMsg('copyMsg','Photo shared. Tap Copy message if it was not copied automatically.');
+        return;
+      }catch(_){ /* Fall through to image download */ }
+    }
+  }
+  downloadReceiptImage(file);
+  showMsg('copyMsg','Your browser downloaded the receipt PNG. Open it in Photos or Files and share to WhatsApp. Use Copy message to copy the request.');
+  toast('Receipt image prepared.');
 }
 
 function sanitizeSearch(input){return String(input||'').trim().replace(/[%,()*]/g,'').slice(0,100);}
@@ -444,7 +595,7 @@ function wireEvents(){
   $('clientListSearch').addEventListener('input',()=>scheduleSearch('clientListSearch','clientList'));
   $('ibListSearch').addEventListener('input',()=>scheduleSearch('ibListSearch','ibList'));
   ['receiptMatches','enquiryResults','clientList','ibList'].forEach(id=>$(id).addEventListener('click',delegateAction));
-  $('screenshotBtn').addEventListener('click',startScreenshot);$('screenshotTarget').addEventListener('click',endScreenshot);
+  $('shareReceiptBtn').addEventListener('click',shareReceiptOnWhatsapp);
   $('printBtn').addEventListener('click',()=>window.print());
   $('copyWhatsappBtn').addEventListener('click',copyWhatsappMessage);
   $('clearReceiptBtn').addEventListener('click',resetReceiptForm);
@@ -454,7 +605,6 @@ function wireEvents(){
   $('addAccountBtn').addEventListener('click',()=>addAccountLine());$('clientForm').addEventListener('submit',saveClient);$('cancelClientEdit').addEventListener('click',resetClientForm);
   $('clientIbLookup').addEventListener('input',()=>{clearTimeout(debounceTimers.ib);debounceTimers.ib=setTimeout(suggestIB,210);});
   $('ibForm').addEventListener('submit',saveIb);$('cancelIbEdit').addEventListener('click',resetIbForm);
-  document.addEventListener('keydown',e=>{if(e.key==='Escape'&&!$('screenshotOverlay').classList.contains('hidden'))endScreenshot();});
   resetClientForm();
 }
 start();
