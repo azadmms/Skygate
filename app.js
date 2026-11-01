@@ -178,7 +178,9 @@ function formatWhatsappUSD(value){
   return Number(value).toFixed(2).replace(/\.00$/,'').replace(/(\.\d)0$/,'$1')+'$';
 }
 function buildWhatsappMessage(receipt){
-  return `Deposit Iraq SkyGate LD\n${receipt.client_name_snapshot||'Not specified'}\n${receipt.account_number}\n${formatWhatsappUSD(receipt.amount_usd)}`;
+  const fullName = String(receipt.client_name_snapshot || '').trim();
+  const firstName = fullName ? fullName.split(/\s+/)[0] : 'Not specified';
+  return `Deposit Iraq SkyGate LD\n${firstName}\n${receipt.account_number}\n${formatWhatsappUSD(receipt.amount_usd)}`;
 }
 async function copyWhatsappMessage(){
   if(!S.receipt)return;
