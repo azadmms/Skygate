@@ -38,7 +38,10 @@ function displayNotes(notes){return notes?`<div class="record-notes"><b>Notes</b
 function acctForClient(id){return S.accounts.filter(a=>a.client_id===id);}
 function byId(collection,id){return collection.find(x=>x.id===id);}
 function setView(el,show){el.classList.toggle('hidden',!show);}
-function accountTags(arr){return `<div class="account-tags">${arr.length?arr.map(a=>`<span class="account-tag">MT5 ${escapeHtml(a.account_number)}</span>`).join(''):'<span class="meta">No linked MT5 accounts</span>'}</div>`;}
+function accountTags(arr){
+  return `<div class="account-tags">${arr.length?arr.map(a=>`<span class="account-tag">MT5 ${escapeHtml(a.account_number)}${canDeleteMt5()?` <button type="button" class="mt5-delete-icon" data-action="deleteMt5" data-id="${escapeHtml(a.id)}" aria-label="Delete MT5 account ${escapeHtml(a.account_number)}" title="Delete MT5 account">×</button>`:''}</span>`).join(''):'<span class="meta">No linked MT5 accounts</span>'}</div>`;
+}
+function canDeleteMt5(){return !IS_LIVE || S.role==='admin';}
 function lineMatch(t,value){return String(value??'').toLowerCase().includes(t.toLowerCase());}
 function demoData(){
   S.ibs=[{id:'ib-demo-1',ib_code:'IB-100',name:'Example IB Partner',email:'ib@example.test',phone:'',trading_account_number:'991234',notes:'Demo IB note: regional partner.'}];
@@ -467,12 +470,89 @@ async function suggestIB(){const q=sanitizeSearch($('clientIbLookup').value);if(
     if(error)throw error;if(token!==S.ibSequence)return;(data||[]).forEach(i=>mergeCache(S.ibs,i));fillIbOptions(data||[]);
   }catch(e){$('selectedIbNote').textContent=errorMsg(e);}
 }
-function addAccountLine(value='',locked=false){const el=document.createElement('div');el.className='account-line';
-  const input=document.createElement('input');input.type='text';input.inputMode='numeric';input.maxLength=24;input.placeholder=locked?'Existing account':'MT5 account number';input.value=value;input.className='mt5-input';input.readOnly=locked;input.dataset.locked=String(locked);
-  const btn=document.createElement('button');btn.type='button';btn.textContent=locked?'✓':'×';btn.disabled=locked;btn.setAttribute('aria-label','Remove account field');btn.addEventListener('click',()=>el.remove());el.append(input,btn);$('accountInputs').append(el);
+function addAccountLine(value='',locked=false,accountId=''){
+  const el=document.createElement('div');el.className='account-line';
+  const input=document.createElement('input');input.type='text';input.inputMode='numeric';input.maxLength=24;
+  input.placeholder=locked?'Existing account':'MT5 account number';input.value=value;input.className='mt5-input';
+  input.readOnly=locked;input.dataset.locked=String(locked);
+  const btn=document.createElement('button');btn.type='button';btn.textContent='×';
+  btn.setAttribute('aria-label',locked?'Delete MT5 account '+value:'Remove unsaved account field');
+  if(locked){
+    btn.className='mt5-form-delete';btn.title='Delete saved MT5 account';btn.disabled=!canDeleteMt5();
+    btn.addEventListener('click',()=>askDeleteMt5(accountId));
+    el.dataset.accountId=accountId;
+  }else{btn.addEventListener('click',()=>el.remove());}
+  el.append(input,btn);$('accountInputs').append(el);
+}
+
+// An MT5 account can only be permanently deleted through the Supabase RPC.
+// The PIN is verified server-side, not in this publicly hosted JavaScript.
+let pendingDeleteAccountId=null;
+function askDeleteMt5(accountId){
+  const acct=byId(S.accounts,accountId);
+  if(!acct || !canDeleteMt5())return;
+  pendingDeleteAccountId=accountId;
+  $('mt5DeleteNumber').textContent=acct.account_number;
+  $('mt5DeletePin').value='';
+  showMsg('mt5DeleteMsg','');
+  $('mt5DeleteConfirm').disabled=false;
+  const dlg=$('mt5DeleteDialog');
+  if(typeof dlg.showModal==='function')dlg.showModal();
+  else dlg.setAttribute('open','');
+  $('mt5DeletePin').focus();
+}
+function closeDeleteMt5(){
+  const dlg=$('mt5DeleteDialog');
+  if(typeof dlg.close==='function' && dlg.open)dlg.close();
+  else dlg.removeAttribute('open');
+  $('mt5DeletePin').value='';
+  pendingDeleteAccountId=null;
+  showMsg('mt5DeleteMsg','');
+}
+async function submitDeleteMt5(e){
+  e.preventDefault();
+  const accountId=pendingDeleteAccountId;
+  const pin=$('mt5DeletePin').value.trim();
+  if(!accountId)return;
+  if(!/^\d{4}$/.test(pin)){
+    showMsg('mt5DeleteMsg','Enter the 4-digit deletion PIN.',true);return;
+  }
+  const btn=$('mt5DeleteConfirm');btn.disabled=true;
+  try{
+    if(IS_LIVE){
+      const {data,error}=await db.rpc('delete_mt5_account_with_pin',{
+        p_account_id:accountId,p_pin:pin
+      });
+      if(error)throw error;
+      if(!data?.ok){
+        const msgs={wrong_pin:`Incorrect PIN. ${data?.attempts_remaining??0} attempts remaining.`,
+          locked:'Too many attempts. Try again after 15 minutes.',
+          not_found:'This MT5 account no longer exists. Refresh the records.'};
+        throw Error(msgs[data?.code]||'Unable to delete this MT5 account.');
+      }
+    }else{
+      // Fictional demo records only. Live deletion PIN validation happens in Supabase.
+      if(pin!=='1122')throw Error('Incorrect demo PIN.');
+      S.accounts=S.accounts.filter(a=>a.id!==accountId);
+    }
+    // Remove the deleted account from all page views and any open edit form.
+    S.accounts=S.accounts.filter(a=>a.id!==accountId);
+    $('accountInputs').querySelectorAll('.account-line[data-account-id]').forEach(el=>{
+      if(el.dataset.accountId===accountId)el.remove();
+    });
+    if(S.chosenAccount?.id===accountId){
+      S.chosenAccount=null;
+      S.chosenClient=null;
+      $('receiptAccount').value='';
+    }
+    closeDeleteMt5();
+    if(IS_LIVE)await refreshAll();else await redrawData();
+    toast('MT5 account deleted successfully'+(IS_LIVE?' from Supabase.':' (demo only).'));
+  }catch(err){showMsg('mt5DeleteMsg',errorMsg(err),true);}
+  finally{btn.disabled=false;}
 }
 function resetClientForm(){ $('clientForm').reset();$('editClientId').value='';$('clientFormTitle').textContent='Register client';$('clientSaveBtn').textContent='Register client';$('cancelClientEdit').classList.add('hidden');$('accountInputs').innerHTML='';addAccountLine();showMsg('clientMsg','');$('selectedIbNote').textContent='Select an existing IB, or leave empty if none.';}
-function editClient(id){const c=byId(S.clients,id);if(!c)return;openTab('clients');resetClientForm();$('editClientId').value=c.id;$('clientFormTitle').textContent='Edit client';$('clientSaveBtn').textContent='Save changes';$('cancelClientEdit').classList.remove('hidden');$('clientFullName').value=c.full_name||'';$('clientNotes').value=c.notes||'';$('clientEmail').value=c.email||'';$('clientPhone').value=c.phone||'';const ib=byId(S.ibs,c.ib_id);$('clientIbLookup').value=ib?ibLabel(ib):'';$('accountInputs').innerHTML='';acctForClient(c.id).forEach(a=>addAccountLine(a.account_number,true));addAccountLine();window.scrollTo({top:0,behavior:'smooth'});}
+function editClient(id){const c=byId(S.clients,id);if(!c)return;openTab('clients');resetClientForm();$('editClientId').value=c.id;$('clientFormTitle').textContent='Edit client';$('clientSaveBtn').textContent='Save changes';$('cancelClientEdit').classList.remove('hidden');$('clientFullName').value=c.full_name||'';$('clientNotes').value=c.notes||'';$('clientEmail').value=c.email||'';$('clientPhone').value=c.phone||'';const ib=byId(S.ibs,c.ib_id);$('clientIbLookup').value=ib?ibLabel(ib):'';$('accountInputs').innerHTML='';acctForClient(c.id).forEach(a=>addAccountLine(a.account_number,true,a.id));addAccountLine();window.scrollTo({top:0,behavior:'smooth'});}
 function findDuplicateClient(email,phone,acctNums,exceptId=null){
   const cleanPhone=String(phone||'').replace(/\D/g,'');
   const dup=S.clients.find(c=>c.id!==exceptId && ((email && c.email?.trim().toLowerCase()===email.toLowerCase()) || (cleanPhone && String(c.phone||'').replace(/\D/g,'')===cleanPhone)));
@@ -576,6 +656,8 @@ function delegateAction(e){const btn=e.target.closest('button[data-action]');if(
     $('receiptSearch').value='';
     $('receiptMatches').innerHTML='';
     if(!$('receiptAccount').value)showMsg('receiptMsg','IB selected. Enter its numeric trading account number to generate a receipt.');
+  }else if(action==='deleteMt5'){
+    askDeleteMt5(id);
   }else if(action==='goToPortal'){
     void goToPortal(btn.dataset.email||'');
   }else if(action==='editClient')editClient(id);
@@ -605,6 +687,9 @@ function wireEvents(){
   $('addAccountBtn').addEventListener('click',()=>addAccountLine());$('clientForm').addEventListener('submit',saveClient);$('cancelClientEdit').addEventListener('click',resetClientForm);
   $('clientIbLookup').addEventListener('input',()=>{clearTimeout(debounceTimers.ib);debounceTimers.ib=setTimeout(suggestIB,210);});
   $('ibForm').addEventListener('submit',saveIb);$('cancelIbEdit').addEventListener('click',resetIbForm);
+  $('mt5DeleteForm').addEventListener('submit',submitDeleteMt5);
+  $('mt5DeleteCancel').addEventListener('click',closeDeleteMt5);
+  $('mt5DeleteDialog').addEventListener('close',()=>{pendingDeleteAccountId=null;$('mt5DeletePin').value='';});
   resetClientForm();
 }
 start();
