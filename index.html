@@ -147,6 +147,18 @@
             <label for="ibEmail">IB email</label><input id="ibEmail" type="email" maxlength="180" placeholder="ib@example.com">
             <label for="ibPhone">IB phone</label><input id="ibPhone" type="tel" maxlength="35" placeholder="Optional phone">
             <label for="ibTradingAccount">IB trading account number</label><input id="ibTradingAccount" inputmode="numeric" maxlength="24" placeholder="Trading / MT5 account">
+            <fieldset class="ib-spread-fieldset">
+              <legend>Available spreads (choose one or both)</legend>
+              <div class="ib-spread-options">
+                <label class="ib-spread-choice" for="ibSpread26"><input id="ibSpread26" type="checkbox"> Spread 26</label>
+                <label class="ib-spread-choice" for="ibSpread36"><input id="ibSpread36" type="checkbox"> Spread 36</label>
+              </div>
+              <p class="field-note">Both spread types are optional. Leave both unchecked if you have not assigned a spread yet.</p>
+              <label for="ibSpread26Url">Spread 26 IB link (optional)</label>
+              <div class="input-button"><input id="ibSpread26Url" type="url" maxlength="2048" placeholder="https://..." autocapitalize="off" autocomplete="off" spellcheck="false"><button id="copyIbSpread26Btn" data-action="copyEditedIbSpread" data-spread="26" type="button" class="btn secondary" disabled>Copy</button></div>
+              <label for="ibSpread36Url">Spread 36 IB link (optional)</label>
+              <div class="input-button"><input id="ibSpread36Url" type="url" maxlength="2048" placeholder="https://..." autocapitalize="off" autocomplete="off" spellcheck="false"><button id="copyIbSpread36Btn" data-action="copyEditedIbSpread" data-spread="36" type="button" class="btn secondary" disabled>Copy</button></div>
+            </fieldset>
             <label for="ibNotes">IB notes (optional)</label><textarea id="ibNotes" rows="4" maxlength="3000" placeholder="Internal notes about this IB. Do not enter passwords."></textarea>
             <button class="btn primary wide" type="submit" id="ibSaveBtn">Save IB</button><button id="clearIbBtn" class="btn secondary wide" type="button">Clear fields</button><button class="btn secondary wide hidden" type="button" id="cancelIbEdit">Cancel edit</button><p id="ibMsg" class="form-msg" role="status"></p>
           </form>
