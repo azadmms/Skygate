@@ -1,7 +1,7 @@
 'use strict';
 
 const $ = id => document.getElementById(id);
-const NEEX_PORTAL_URL = 'https://cp.neex.com/login/index?redirect=/';
+const NEEX_PORTAL_URL = 'https://cp.neex.com/deposit/depositForm?mainChannelId=1225';
 const FIELDS_IB = 'id,ib_code,name,email,phone,trading_account_number,notes,created_at,updated_at';
 const FIELDS_CLIENT = 'id,ib_id,full_name,email,phone,notes,created_at,updated_at';
 const FIELDS_ACC = 'id,client_id,account_number,label,created_at';
